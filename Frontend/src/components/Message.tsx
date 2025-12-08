@@ -3,7 +3,7 @@ import {Search,Ellipsis} from 'lucide-react'
 import ChatBot from './ChatBot'
 const Message = () => {
     return (
-        <div className='w-full h-full flex flex-col' >
+        <div className='ml-3 pb-3 mr-3 w-full h-full flex flex-col p-1' >
 
            {/* TopBar */}
             <div className='flex justify-between text-white h-8 w-full'>
@@ -18,7 +18,7 @@ const Message = () => {
             </div>
 
               {/* Main content */}
-            <div className='mt-2 h-full w-full bg-[#3F424A] rounded-md overflow-y-scroll'>
+            <div className='mt-2 h-full w-full bg-[#3F424A] rounded-md overflow-y-scroll chat-messages'>
              <ChatBot/>
             </div>
         </div>

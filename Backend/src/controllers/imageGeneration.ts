@@ -3,8 +3,10 @@ import { ChatOpenAI } from "@langchain/openai";
 import * as z from "zod";
 import OpenAI from "openai";
 import type { Request, Response } from "express";
-import { io, userPrompts } from "../server.js";
-import { allUserMessages, getLastMessages, storeMessages, storeSummarizeMessages } from "../db/model.js";
+import { io,isRegenereate,userPrompts } from "../server.js";
+import { allUserMessages, getLastMessages, storeMessages, storeSummarizeMessages, updateResponseId } from "../db/model.js";
+import crypto from "crypto";
+
 
 const imageGeneration = async (req: Request, res: Response) => {
     const { socketId } = req.body;
@@ -84,12 +86,12 @@ const imageGeneration = async (req: Request, res: Response) => {
     ])
 
     const summaryText = summaryResult.content || ""
-    console.log("summaryText direct-->",summaryResult)
+    console.log("summaryText direct-->", summaryResult)
     console.log("summaryText:", summaryText)
 
 
     //save the summary to db
-    await storeSummarizeMessages({userId:socketId,summarizeText:summaryText as string})
+    await storeSummarizeMessages({ userId: socketId, summarizeText: summaryText as string })
 
     const systemPrompt = `
            You are an AI chatbot designed to behave like the user's caring best friend.
@@ -148,12 +150,14 @@ Respond as a supportive best friend using all context naturally.
 
 
 
-
     //  user message
-    await storeMessages({ userId: socketId, role: 'user', content: prompt })
-
-
-
+    const conversationId = crypto.randomUUID()
+    if(!isRegenereate){
+        console.log("regenerate:",isRegenereate)
+        console.log("no regneration")
+        await storeMessages({ userId: socketId, role: 'user', content: prompt,messageId:conversationId })
+    }
+    
 
     // SIGNAL start
     res.json({ status: "streaming_started" })
@@ -179,6 +183,10 @@ Respond as a supportive best friend using all context naturally.
         { streamMode: "messages" }
     );
 
+    const responseId = crypto.randomUUID()
+    console.log("response Id :", responseId)
+
+
 
     let aiMessage = ""
     for await (const [chunk] of stream) {
@@ -187,7 +195,10 @@ Respond as a supportive best friend using all context naturally.
         aiMessage += token
         io.to(socketId).emit("send_chunks", token);
     }
-    await storeMessages({ userId: socketId, role: 'ai', content: aiMessage })
+    await storeMessages({ userId: socketId, role: 'ai', content: aiMessage, messageId: responseId })
+
+    //
+    io.emit("send_responseId", responseId)
 
 
 

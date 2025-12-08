@@ -6,7 +6,7 @@ import http from "http";
 import { Server as SocketIOServer } from "socket.io";
 import cors from "cors";
 import router from "./routes/langChain.js";
-import createUserTable, { createMemoryTable } from "./db/model.js";
+import createUserTable, { createMemoryTable, updateResponseId } from "./db/model.js";
 
 const app = express();
 app.use(express.json());
@@ -25,24 +25,31 @@ export const io = new SocketIOServer(server, {
 
 // PROMPTS BY SOCKET ID
 export const userPrompts: Record<string, string> = {}
+export let isRegenereate : boolean = false
 
 // call DB
 createUserTable()
 createMemoryTable()
-    
+
 
 io.on("connection", (socket) => {
     console.log("User connected:", socket.id)
     socket.emit("socket_id", socket.id)
 
     // Get prompt 
-    socket.on("send_prompt", ({ text,userId }) => {
+    socket.on("send_prompt", ({ text, userId,regenereate}) => {
         userPrompts[socket.id] = text;
-        console.log("Received prompt for:", userId, text)
-        console.log("user-prompts",userPrompts)
+        console.log("regeneration:",regenereate)
+        isRegenereate = regenereate
+        //userPrompts[socket.id + "_regen"] = regenerate
+        // console.log("Received prompt for:", userId, text)
+        // console.log("user-prompts",userPrompts)
     })
 
-    //console.log("userprompts:",userPrompts)
+    socket.on("update_messages", async (responseId) => {
+        console.log("update_messages received:", responseId);
+        await updateResponseId({ responseId });
+    });
 
     socket.on("disconnect", () => {
         delete userPrompts[socket.id]
