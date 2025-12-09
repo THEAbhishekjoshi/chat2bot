@@ -21,10 +21,10 @@ const IconButton = ({ icon, active, click }: {
 
 
 export default function Sidebar() {
-  const [activeTab, setActiveTab] = React.useState("chat");
+  const [activeTab, setActiveTab] = React.useState("");
   const [isChatPanelOpen, setIsChatPanelOpen] = React.useState(false);
 
-  const sidePanelWidth = useMemo(() => isChatPanelOpen ? 'w-92' : 'w-16', [isChatPanelOpen]);
+  const sidePanelWidth = useMemo(() => isChatPanelOpen ? 'w-120' : 'w-16', [isChatPanelOpen]);
 
   const toggleSidePannel = (props:string) => {
     if(activeTab !== '' || activeTab === props) {
@@ -38,8 +38,8 @@ export default function Sidebar() {
 
   return (
     <div className={`${sidePanelWidth} h-full flex relative`}>
-      {/*  */}
-      <div className="h-full w-full bg-[#1f2124] border-r border-[#2c2e32] flex flex-col items-center py-6 gap-6">
+      {/* icons pannel  */}
+      <div className="h-full w-16 bg-[#1f2124] border-r border-[#2c2e32] flex flex-col items-center py-6 gap-6">
 
         {/* Logo */}
         <div className="w-8 h-8 rounded-2xl bg-[#2a2d31] flex items-center justify-center">
