@@ -58,7 +58,6 @@ const imageGeneration = async (req: Request, res: Response) => {
         apiKey: process.env.API_KEY,
     })
 
-    await storeSessionId({sessionId:sessionID,userId:userID,title:"Untitled"})
 
     // OLD MESSAGES
     const oldMessages = await getLastMessages({ sessionId:sessionID }) || []
@@ -69,11 +68,38 @@ const imageGeneration = async (req: Request, res: Response) => {
     console.log("all messages:", allMessages)
 
   
+
+    // title model
+    const title = new ChatOpenAI({
+        model:"gpt-4o-mini",
+        apiKey:process.env.API_KEY
+    })
+    // invoke title model
+    const titleResult = await title.invoke([
+        {
+            role:"system",
+            content:`Generate a short and concise chat title in 4-6 words based on the users message. Do NOT answer the question, just summarize it as a title. 
+            Example:
+            User message: Hello, what is the capital of America? 
+            Title: Capital of America 
+            User message: How do I reset my password on Gmail? 
+            Title: Gmail Password Reset`
+        },
+        {
+            role:"user",
+            content:prompt 
+        }
+    ])
     // summarizer model
     const summarizer = new ChatOpenAI({
         model: "gpt-4o-mini",
         apiKey: process.env.API_KEY,
     })
+    const titleText = titleResult.content || ""
+    console.log(titleText,"Title text")
+
+    await storeSessionId({sessionId:sessionID,userId:userID,title:titleText as string})
+
 
     // invoke 
     const summaryResult = await summarizer.invoke([

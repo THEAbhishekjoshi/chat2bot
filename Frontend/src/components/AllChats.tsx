@@ -7,9 +7,11 @@ const AllChats = () => {
     const userId = "100001"
     const dispatch = useAppDispatch()
 
+        const currentSession = useAppSelector((state)=>state.globalState.currentSessionId)
+
     useEffect(() => {
         dispatch(fetchAllSessions({ userId }))
-    }, [])
+    }, [currentSession])
 
     const sessionList = useAppSelector((state) => state.sessions)
 
@@ -17,21 +19,20 @@ const AllChats = () => {
         dispatch(setSessionId(sessionId))
     }
     return (
-        <div className='w-full flex flex-col gap-2 ' >
+        <div className='w-full flex flex-col gap-2 h-full' >
             {sessionList.map((s) => {
-                console.log(s,"s 22")
-                return <div className='w-70 flex flex-col gap-2 hover:bg-[#1E1F22] p-5 rounded-md' onClick={()=>handleSessionId({sessionId:s.sessionId})} key={s.sessionId}>
+                return <div className={`${currentSession ===s.sessionId ? 'bg-[#0f1011]':'bg-[#292a2e]'} w-70 flex flex-col gap-2 hover:bg-[#1E1F22] p-5 rounded-md`} onClick={()=>handleSessionId({sessionId:s.sessionId})} key={s.sessionId}>
                     {/* title */}
                     <div className='flex justify-between gap-8'>
-                        <div className='text-sm'>{s.title}</div>
-                        <div className='text-sm'>{new Date(s.createdAt).toLocaleTimeString([], {
+                        <div className='text-sm font-bold'>{s.title}</div>
+                        <div className='text-[0.8rem] text-[#ABABAB]'>{new Date(s.createdAt).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
                             hour12: true
                         })}</div>
                     </div>
-                    <div className='break-words'>
-                        {s.lastMessage?.length ? s.lastMessage.slice(0,80) : "No message yet"}...
+                    <div className='break-words text-[#ABABAB] text-[0.8rem]'>
+                        {s.lastMessage?.length ? s.lastMessage.slice(0,50) : "No message yet"}...
                     </div>
                 </div>
             })}

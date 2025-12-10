@@ -7,6 +7,7 @@ import logo from "/logo1.svg";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { fetchAllChats, resetChats } from "@/features/chats/chats";
 import { setSessionId } from "@/features/globalstate/sessionState";
+import { fetchAllSessions } from "@/features/sessions/sessions";
 
 export type MessageProps = {
     role: "user" | "assistant" | "",
@@ -41,6 +42,7 @@ const ChatBot = () => {
 
     let [userMessage, setUserMessage] = useState("");
     const [socketId, setSocketId] = useState("");
+    const socketIdRef= useRef(null)
 
     const [allMessages, setAllMessages] = useState<MessageProps[]>(chatList)
 
@@ -52,11 +54,12 @@ const ChatBot = () => {
     const [typing, setTyping] = useState(true)
 
     useEffect(() => {
-        socket.connect()
-
         socket.on("socket_id", (id) => {
+            console.log(socket,"id 61")
+            console.log(socket.id,"socket 62")
             setSocketId(id)
-
+            //console.log(socketId,"62")
+            socketIdRef.current = id
         });
 
         socket.on("send_chunks", (chunk) => {
@@ -134,9 +137,10 @@ const ChatBot = () => {
         });
 
         // Trigger LangChain processing
-        console.log(socketId,"socketId 137 chatbot")
+        console.log(socketId,"socketId 142 chatbot")
+        console.log(socketIdRef.current,"socketId 143 chatbot")
         await axios.post("http://localhost:3001/chat/langchain/image", {
-            socketId,
+            socketId:socketIdRef.current
         })
 
         // typing enabled
