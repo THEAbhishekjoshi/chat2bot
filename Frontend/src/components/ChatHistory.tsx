@@ -2,8 +2,15 @@ import React from 'react'
 import { Plus, Ellipsis } from "lucide-react";
 import Tab from './common/Tab';
 import SearchWithFilter from './common/Searchbar';
+import AllChats from './AllChats';
+import { useAppDispatch } from '@/app/hooks';
+import { resetGlobalState } from '@/features/globalstate/sessionState';
 
 const ChatHistory = () => {
+    const dispatch = useAppDispatch()
+    const handleClick =()=>{
+        dispatch(resetGlobalState())
+    }
     return (
         <div className='w-full h-full p-2 relative flex flex-col gap-4'>
             {/* Top bar */}
@@ -12,11 +19,10 @@ const ChatHistory = () => {
                 {/* Title */}
                 <div className='font-semibold text-white text-2xl'>My Chats</div>
 
-
-
                 <div className='flex gap-2'>
-                    <div className='bg-[#15c37a] text-white rounded-md flex items-center justify-center w-[1.8rem] h-[1.8rem]'><Plus size={18}/></div>
-                    <div className='bg-[#1E1F22] text-white rounded-md flex items-center justify-center w-[1.8rem] h-[1.8rem]'><Ellipsis /></div>
+                    <button className='bg-[#15c37a] text-white rounded-md flex items-center justify-center w-[1.8rem] h-[1.8rem]'
+                    onClick={()=>handleClick()}><Plus size={18}/></button>
+                    <button className='bg-[#1E1F22] text-white rounded-md flex items-center justify-center w-[1.8rem] h-[1.8rem]'><Ellipsis /></button>
                 </div>
             </div>
 
@@ -31,8 +37,8 @@ const ChatHistory = () => {
             </div>
 
             {/* All Chats */}
-            <div className='bg-slate-500  mt-2 rounded-md text-white flex items-center justify-center'>
-                
+            <div className='overflow-y-scroll chat-messages mt-2 rounded-md text-white flex items-center justify-center '>
+                <AllChats/>
             </div>
         </div>
     )

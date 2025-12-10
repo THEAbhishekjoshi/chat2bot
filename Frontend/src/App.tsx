@@ -5,6 +5,7 @@ import Sidebar from './components/common/Iconbutton';
 import Message from './components/Message';
 
 export const socket = io('http://localhost:3001');
+socket.connect();
 
 function App(){
     return(
