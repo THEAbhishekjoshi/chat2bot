@@ -99,7 +99,8 @@ const imageGeneration = async (req: Request, res: Response) => {
     console.log(titleText,"Title text")
 
     await storeSessionId({sessionId:sessionID,userId:userID,title:titleText as string})
-
+    console.log(titleText,"title 102")
+    // io.emit("send_sessionId",sessionID)
 
     // invoke 
     const summaryResult = await summarizer.invoke([
@@ -228,6 +229,8 @@ Respond as a supportive best friend using all context naturally.
 
     //
     io.emit("send_messageId", responseId, conversationId)
+    io.emit("send_sessionId",sessionID)
+
 
 };
 

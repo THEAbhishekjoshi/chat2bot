@@ -9,6 +9,8 @@ import router from "./routes/langChain.js";
 import allChatRouter from './routes/chatSliceRoute.js'
 import allSessionsRouter from './routes/sessionSliceRoutes.js'
 import createUsersTable, { createMemoryTable, createMessagesTable, createSessionTable, updateResponseId } from "./db/model.js";
+import crypto from "crypto";
+
 
 const app = express();
 app.use(express.json());
@@ -52,8 +54,12 @@ io.on("connection", (socket) => {
         //userPrompts[userId] = text;
         userPrompt = text
         userID=userId
-        sessionID=sessionId
-        //console.log("regeneration:",regenereate,"userID",userID)
+        if(!sessionId){
+            sessionID = crypto.randomUUID()
+        }
+        else{
+            sessionID=sessionId  
+        }
         isRegenereate = regenereate
     })
 

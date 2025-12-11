@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { socket } from "../App";
+import { socket, socketInitialize } from "@/services/socketInitialize";
 import axios from "axios";
 import { Copy, Mic, RefreshCcw, Send } from "lucide-react";
 import user from "/user.svg";
@@ -16,50 +16,60 @@ export type MessageProps = {
 }
 
 const ChatBot = () => {
-    // test
-    //const { sessionId, userId } = { sessionId:"adc77497-a8a1-4dc2-81f7-ebe0a9fb84c6", userId:"100001" }
-
     const dispatch = useAppDispatch()
     const sessionId = useAppSelector(state => state.globalState.currentSessionId);
     const userId = "100001"
+    let [userMessage, setUserMessage] = useState("");
+    const [socketId, setSocketId] = useState("");
+    const socketIdRef = useRef<string | null>(null)
+
+    const chatList = useAppSelector((state) => state.chats)
+    const [allMessages, setAllMessages] = useState<MessageProps[]>(chatList)
+    
+
+
+    const messageRef = useRef<HTMLDivElement>(null)
     useEffect(() => {
         if (!sessionId) {
-            const created = crypto.randomUUID()
-            dispatch(setSessionId(created))
+            // const created = crypto.randomUUID()
+            // dispatch(setSessionId(created))
             return
         }
 
-        dispatch(resetChats())
+        //dispatch(resetChats())
         // If sessionId exists → fetch chats
         dispatch(fetchAllChats({ sessionId }))
     }, [sessionId])
 
-    const chatList = useAppSelector((state) => state.chats)
     useEffect(() => {
         setAllMessages(chatList);
     }, [chatList]);
 
 
-    let [userMessage, setUserMessage] = useState("");
-    const [socketId, setSocketId] = useState("");
-    const socketIdRef= useRef(null)
-
-    const [allMessages, setAllMessages] = useState<MessageProps[]>(chatList)
-
-
-    const messageRef = useRef<HTMLDivElement>(null)
+    
     let regenereate = false
 
     // typing state 
     const [typing, setTyping] = useState(true)
 
     useEffect(() => {
+        if (!socket) {
+            socketInitialize()
+            console.log("socket initialized.")
+        }
+        socket.on("connection", () => {
+            console.log("connected:", socket)
+            if (socket.id) {
+                setSocketId(socket.id)
+                socketIdRef.current = socket.id
+            }
+
+        })
         socket.on("socket_id", (id) => {
-            console.log(socket,"id 61")
-            console.log(socket.id,"socket 62")
-            setSocketId(id)
-            //console.log(socketId,"62")
-            socketIdRef.current = id
+            console.log(id,"id 61 socket")
+            // console.log(socket.id,"socket 62")
+            // setSocketId(id)
+            // socketIdRef.current = id
         });
 
         socket.on("send_chunks", (chunk) => {
@@ -102,11 +112,18 @@ const ChatBot = () => {
 
                 return newPrev;
             })
+            
+        })
+
+        socket.on("send_sessionId",(sID)=>{
+            dispatch(setSessionId(sID))
         })
         return () => {
-            socket.off("send_chunks");
-            socket.off("socket_id");
+            socket.off("connection")
+            socket.off("socket_id")
+            socket.off("send_chunks")
             socket.off("send_responseId")
+
         };
     }, []);
 
@@ -137,13 +154,10 @@ const ChatBot = () => {
         });
 
         // Trigger LangChain processing
-        console.log(socketId,"socketId 142 chatbot")
-        console.log(socketIdRef.current,"socketId 143 chatbot")
-        await axios.post("http://localhost:3001/chat/langchain/image", {
-            socketId:socketIdRef.current
+        console.log(socket.id, "socketId 150 chatbot")
+        const data = await axios.post("http://localhost:3001/chat/langchain/image", {
+            socketId: socket.id
         })
-
-        // typing enabled
         setTyping(true)
 
     };

@@ -16,14 +16,15 @@ export const chatSlice = createSlice({
     name: "chat",
     initialState,
     reducers: {
-        resetChats(state) {
-            return [];
+        resetChats() {
+            return []
         }
     },
     extraReducers: (builder) => {
         builder
             .addCase(fetchAllChats.fulfilled, (state, action) => {
-                state.push(...action.payload)
+                //state.push(...action.payload)
+                return action.payload
             })
     }
 

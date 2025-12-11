@@ -7,7 +7,7 @@ const AllChats = () => {
     const userId = "100001"
     const dispatch = useAppDispatch()
 
-        const currentSession = useAppSelector((state)=>state.globalState.currentSessionId)
+    const currentSession = useAppSelector((state)=>state.globalState.currentSessionId)
 
     useEffect(() => {
         dispatch(fetchAllSessions({ userId }))
@@ -20,7 +20,9 @@ const AllChats = () => {
     }
     return (
         <div className='w-full flex flex-col gap-2 h-full' >
+            
             {sessionList.map((s) => {
+                console.log(s,"s 25")
                 return <div className={`${currentSession ===s.sessionId ? 'bg-[#0f1011]':'bg-[#292a2e]'} w-70 flex flex-col gap-2 hover:bg-[#1E1F22] p-5 rounded-md`} onClick={()=>handleSessionId({sessionId:s.sessionId})} key={s.sessionId}>
                     {/* title */}
                     <div className='flex justify-between gap-8'>

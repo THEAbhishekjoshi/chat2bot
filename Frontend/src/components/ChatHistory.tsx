@@ -5,11 +5,13 @@ import SearchWithFilter from './common/Searchbar';
 import AllChats from './AllChats';
 import { useAppDispatch } from '@/app/hooks';
 import { resetGlobalState } from '@/features/globalstate/sessionState';
+import { resetChats } from '@/features/chats/chats';
 
 const ChatHistory = () => {
     const dispatch = useAppDispatch()
     const handleClick =()=>{
         dispatch(resetGlobalState())
+        dispatch(resetChats())
     }
     return (
         <div className='w-full h-full p-2 relative flex flex-col gap-4'>
