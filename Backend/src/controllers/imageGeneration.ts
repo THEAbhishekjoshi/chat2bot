@@ -3,17 +3,17 @@ import { ChatOpenAI } from "@langchain/openai";
 import * as z from "zod";
 import OpenAI from "openai";
 import type { Request, Response } from "express";
-import { io,isRegenereate,userPrompts } from "../server.js";
-import { allUserMessages, getLastMessages, storeMessages, storeSummarizeMessages, updateResponseId } from "../db/model.js";
+import { io,isRegenereate,sessionID,userID,userPrompt } from "../server.js";
+import { allUserMessages, getLastMessages, storeMessages, storeSessionId, storeSummarizeMessages } from "../db/model.js";
 import crypto from "crypto";
 
 
 const imageGeneration = async (req: Request, res: Response) => {
     const { socketId } = req.body;
-
+    //console.log("userID(0)",userID,"sessionID",sessionID,"userPrompt",userPrompt)
     if (!socketId) return res.status(400).json({ error: "socketId required" })
 
-    const prompt = userPrompts[socketId];
+    const prompt = userPrompt
     if (!prompt)
         return res.status(400).json({ error: "No prompt found for this socket" })
 
@@ -58,19 +58,48 @@ const imageGeneration = async (req: Request, res: Response) => {
         apiKey: process.env.API_KEY,
     })
 
+
     // OLD MESSAGES
-    const oldMessages = await getLastMessages({ userId: socketId }) || []
+    const oldMessages = await getLastMessages({ sessionId:sessionID }) || []
     console.log("old messages:", oldMessages)
 
     // All MESSAGES (string)
-    const allMessages = await allUserMessages({ userId: socketId })
+    const allMessages = await allUserMessages({userId :userID,sessionId:sessionID})
     console.log("all messages:", allMessages)
 
+  
+
+    // title model
+    const title = new ChatOpenAI({
+        model:"gpt-4o-mini",
+        apiKey:process.env.API_KEY
+    })
+    // invoke title model
+    const titleResult = await title.invoke([
+        {
+            role:"system",
+            content:`Generate a short and concise chat title in 4-6 words based on the users message. Do NOT answer the question, just summarize it as a title. 
+            Example:
+            User message: Hello, what is the capital of America? 
+            Title: Capital of America 
+            User message: How do I reset my password on Gmail? 
+            Title: Gmail Password Reset`
+        },
+        {
+            role:"user",
+            content:prompt 
+        }
+    ])
     // summarizer model
     const summarizer = new ChatOpenAI({
         model: "gpt-4o-mini",
         apiKey: process.env.API_KEY,
     })
+    const titleText = titleResult.content || ""
+    console.log(titleText,"Title text")
+
+    await storeSessionId({sessionId:sessionID,userId:userID,title:titleText as string})
+
 
     // invoke 
     const summaryResult = await summarizer.invoke([
@@ -91,7 +120,7 @@ const imageGeneration = async (req: Request, res: Response) => {
 
 
     //save the summary to db
-    await storeSummarizeMessages({ userId: socketId, summarizeText: summaryText as string })
+    await storeSummarizeMessages({ userId: userID, summarizeText: summaryText as string })
 
     const systemPrompt = `
            You are an AI chatbot designed to behave like the user's caring best friend.
@@ -155,7 +184,7 @@ Respond as a supportive best friend using all context naturally.
     if(!isRegenereate){
         console.log("regenerate:",isRegenereate)
         console.log("no regneration")
-        await storeMessages({ userId: socketId, role: 'user', content: prompt,messageId:conversationId })
+        await storeMessages({ userId:userID,sessionId:sessionID, role: 'user', content: prompt,messageId:conversationId })
     }
     
 
@@ -195,12 +224,10 @@ Respond as a supportive best friend using all context naturally.
         aiMessage += token
         io.to(socketId).emit("send_chunks", token);
     }
-    await storeMessages({ userId: socketId, role: 'ai', content: aiMessage, messageId: responseId })
+    await storeMessages({ userId:userID,sessionId:sessionID, role: 'assistant', content: aiMessage, messageId: responseId })
 
     //
-    io.emit("send_responseId", responseId)
-
-
+    io.emit("send_messageId", responseId, conversationId)
 
 };
 

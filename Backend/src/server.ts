@@ -6,7 +6,9 @@ import http from "http";
 import { Server as SocketIOServer } from "socket.io";
 import cors from "cors";
 import router from "./routes/langChain.js";
-import createUserTable, { createMemoryTable, updateResponseId } from "./db/model.js";
+import allChatRouter from './routes/chatSliceRoute.js'
+import allSessionsRouter from './routes/sessionSliceRoutes.js'
+import createUsersTable, { createMemoryTable, createMessagesTable, createSessionTable, updateResponseId } from "./db/model.js";
 
 const app = express();
 app.use(express.json());
@@ -24,12 +26,21 @@ export const io = new SocketIOServer(server, {
 })
 
 // PROMPTS BY SOCKET ID
-export const userPrompts: Record<string, string> = {}
+//export const userPrompts: Record<string, string> = {}
 export let isRegenereate : boolean = false
+export let socketId: string |null= null
+export let userPrompt:string =""
+export let userID:string = ""
+export let sessionID:string = ""
 
 // call DB
-createUserTable()
-createMemoryTable()
+async function initDB(){
+    await createUsersTable()
+    await createSessionTable()
+    await createMessagesTable()
+    await createMemoryTable()
+}
+initDB()
 
 
 io.on("connection", (socket) => {
@@ -37,13 +48,13 @@ io.on("connection", (socket) => {
     socket.emit("socket_id", socket.id)
 
     // Get prompt 
-    socket.on("send_prompt", ({ text, userId,regenereate}) => {
-        userPrompts[socket.id] = text;
-        console.log("regeneration:",regenereate)
+    socket.on("send_prompt", ({ userId,sessionId,text,regenereate}) => {
+        //userPrompts[userId] = text;
+        userPrompt = text
+        userID=userId
+        sessionID=sessionId
+        //console.log("regeneration:",regenereate,"userID",userID)
         isRegenereate = regenereate
-        //userPrompts[socket.id + "_regen"] = regenerate
-        // console.log("Received prompt for:", userId, text)
-        // console.log("user-prompts",userPrompts)
     })
 
     socket.on("update_messages", async (responseId) => {
@@ -52,13 +63,14 @@ io.on("connection", (socket) => {
     });
 
     socket.on("disconnect", () => {
-        delete userPrompts[socket.id]
         console.log("disconnected")
     })
 })
 
 // ROUTES
 app.use("/chat", router);
+app.use("/chat",allChatRouter)
+app.use("/chat",allSessionsRouter)
 
 server.listen(3001, () => {
     console.log("Server running at http://localhost:3001");
