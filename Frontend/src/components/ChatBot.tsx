@@ -25,7 +25,7 @@ const ChatBot = () => {
 
     const chatList = useAppSelector((state) => state.chats)
     const [allMessages, setAllMessages] = useState<MessageProps[]>(chatList)
-    
+
 
 
     const messageRef = useRef<HTMLDivElement>(null)
@@ -46,7 +46,7 @@ const ChatBot = () => {
     }, [chatList]);
 
 
-    
+
     let regenereate = false
 
     // typing state 
@@ -66,7 +66,7 @@ const ChatBot = () => {
 
         })
         socket.on("socket_id", (id) => {
-            console.log(id,"id 61 socket")
+            console.log(id, "id 61 socket")
             // console.log(socket.id,"socket 62")
             // setSocketId(id)
             // socketIdRef.current = id
@@ -112,18 +112,18 @@ const ChatBot = () => {
 
                 return newPrev;
             })
-            
         })
 
-        socket.on("send_sessionId",(sID)=>{
+        socket.on("send_sessionId", (sID) => {
             dispatch(setSessionId(sID))
         })
+
         return () => {
             socket.off("connection")
             socket.off("socket_id")
             socket.off("send_chunks")
-            socket.off("send_responseId")
-
+            socket.off("send_messageId")
+            socket.off("send_sessionId")
         };
     }, []);
 
@@ -242,10 +242,10 @@ const ChatBot = () => {
                                 m.role === "assistant" ?
                                     <div className="flex flex-col">
                                         <div ref={messageRef}>{m.content}</div>
-                                        {m.content.length > 0 ?
+                                        {m.messageId ?
                                             <div className="mt-4 flex gap-3 justify-end">
                                                 <div className="text-[0.7rem] bg-[#202633] rounded-md p-2 hover:bg-[#121722] cursor-pointer">
-                                                    <button className="flex items-center gap-1 " onClick={() => {
+                                                    <button className="flex items-center gap-1" onClick={() => {
                                                         if (m.messageId) {
                                                             //console.log("id:", m.messageId)
                                                             handleGenereateResponse(m.messageId)
