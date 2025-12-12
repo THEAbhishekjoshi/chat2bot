@@ -171,7 +171,7 @@ export async function allUserMessages2({ sessionId }: { sessionId: string }) {
   }
 }
 
-export async function allUserSessions({ userId }: { userId: string }) {
+export async function allUserSessions({ userId,userInput }: { userId: string,userInput:string }) {
   try {
     const query = `
         SELECT 
@@ -189,15 +189,15 @@ export async function allUserSessions({ userId }: { userId: string }) {
           LIMIT 1
         ) m ON TRUE
        WHERE s.user_id = $1
+       AND s.title ILIKE $2
        ORDER BY s.created_at DESC;
     `
-    const result = await pool.query(query, [userId])
+    const searchTerm = `%${userInput}%`
+    const result = await pool.query(query, [userId,searchTerm])
     let messages = []
     for (let rows of result.rows) {
       messages.push({ sessionId: rows.session_id, userId: rows.user_id, title: rows.title, createdAt: rows.created_at,lastMessage: rows.last_message })
     }
-
-    // messages.push()
     return messages;
   }
   catch (error) {

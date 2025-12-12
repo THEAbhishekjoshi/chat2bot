@@ -4,8 +4,10 @@ import { allUserSessions } from "../db/model.js";
 
 export const getAllSessions=async(req:Request,res:Response)=>{
     const {userId} = req.params
+    const {searchText} = req.body
+
     if(userId){
-        const sessions = await allUserSessions({userId})
+        const sessions = await allUserSessions({userId,userInput:searchText as string})
         res.status(200).json({
             "result":sessions
         })

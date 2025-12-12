@@ -7,7 +7,7 @@ import logo from "/logo1.svg";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { fetchAllChats, resetChats } from "@/features/chats/chats";
 import { setSessionId } from "@/features/globalstate/sessionState";
-import { fetchAllSessions } from "@/features/sessions/sessions";
+
 
 export type MessageProps = {
     role: "user" | "assistant" | "",
