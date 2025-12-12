@@ -103,12 +103,15 @@ const ChatBot = () => {
                     };
                 }
 
-                if (newPrev[secondLastIndex].role === "user") {
-                    newPrev[secondLastIndex] = {
-                        ...newPrev[secondLastIndex],
-                        messageId: id2
-                    };
+                if (id2 !== "") {
+                    if (newPrev[secondLastIndex].role === "user") {
+                        newPrev[secondLastIndex] = {
+                            ...newPrev[secondLastIndex],
+                            messageId: id2
+                        };
+                    }
                 }
+
 
                 return newPrev;
             })
@@ -178,7 +181,7 @@ const ChatBot = () => {
 
                 const newList = [...prev]
                 userTextResend = newList[idx - 1].content
-                newList[idx] = { ...newList[idx], content: "" }
+                newList[idx] = { ...newList[idx], content: "",messageId:"" }
                 const trimmedList = newList.slice(0, idx + 1)
                 return trimmedList
             })
