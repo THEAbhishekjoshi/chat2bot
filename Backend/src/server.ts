@@ -10,6 +10,7 @@ import allChatRouter from './routes/chatSliceRoute.js'
 import allSessionsRouter from './routes/sessionSliceRoutes.js'
 import createUsersTable, { createMemoryTable, createMessagesTable, createSessionTable, updateResponseId } from "./db/model.js";
 import crypto from "crypto";
+import audioTOText from "./utils/audioToText.js";
 
 
 const app = express();
@@ -29,14 +30,14 @@ export const io = new SocketIOServer(server, {
 
 // PROMPTS BY SOCKET ID
 //export const userPrompts: Record<string, string> = {}
-export let isRegenereate : boolean = false
-export let socketId: string |null= null
-export let userPrompt:string =""
-export let userID:string = ""
-export let sessionID:string = ""
+export let isRegenereate: boolean = false
+export let socketId: string | null = null
+export let userPrompt: string = ""
+export let userID: string = ""
+export let sessionID: string = ""
 
 // call DB
-async function initDB(){
+async function initDB() {
     await createUsersTable()
     await createSessionTable()
     await createMessagesTable()
@@ -50,15 +51,15 @@ io.on("connection", (socket) => {
     socket.emit("socket_id", socket.id)
 
     // Get prompt 
-    socket.on("send_prompt", ({ userId,sessionId,text,regenereate}) => {
+    socket.on("send_prompt", ({ userId, sessionId, text, regenereate }) => {
         //userPrompts[userId] = text;
         userPrompt = text
-        userID=userId
-        if(!sessionId){
+        userID = userId
+        if (!sessionId) {
             sessionID = crypto.randomUUID()
         }
-        else{
-            sessionID=sessionId  
+        else {
+            sessionID = sessionId
         }
         isRegenereate = regenereate
     })
@@ -68,6 +69,12 @@ io.on("connection", (socket) => {
         await updateResponseId({ responseId });
     });
 
+    socket.on("send_audioFile", async (audioData) => {
+        const text = await audioTOText(audioData)
+        console.log("Transcribed text:", text)
+        socket.emit("audio_transcribed", text)
+    });
+
     socket.on("disconnect", () => {
         console.log("disconnected")
     })
@@ -75,8 +82,8 @@ io.on("connection", (socket) => {
 
 // ROUTES
 app.use("/chat", router);
-app.use("/chat",allChatRouter)
-app.use("/chat",allSessionsRouter)
+app.use("/chat", allChatRouter)
+app.use("/chat", allSessionsRouter)
 
 server.listen(3001, () => {
     console.log("Server running at http://localhost:3001");

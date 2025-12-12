@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { socket, socketInitialize } from "@/services/socketInitialize";
 import axios from "axios";
-import { Copy, Mic, RefreshCcw, Send } from "lucide-react";
+import { Copy, Mic, RefreshCcw, Send, Square } from "lucide-react";
 import user from "/user.svg";
 import logo from "/logo1.svg";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
@@ -22,13 +22,17 @@ const ChatBot = () => {
     let [userMessage, setUserMessage] = useState("");
     const [socketId, setSocketId] = useState("");
     const socketIdRef = useRef<string | null>(null)
-
     const chatList = useAppSelector((state) => state.chats)
     const [allMessages, setAllMessages] = useState<MessageProps[]>(chatList)
-
-
-
+    const [isRecording, setIsRecording] = useState(false)
+    let regenereate = false
+    const [typing, setTyping] = useState(true)
     const messageRef = useRef<HTMLDivElement>(null)
+    const [audioBlob, setAudioBlob] = useState<Blob>()
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+    const [aduioState, setAudioState] = useState<boolean>(false)
+
+
     useEffect(() => {
         if (!sessionId) {
             // const created = crypto.randomUUID()
@@ -46,11 +50,58 @@ const ChatBot = () => {
     }, [chatList]);
 
 
+    useEffect(() => {
+        let chunks: Blob[] = []
 
-    let regenereate = false
+        const startRecording = async () => {
+            if (!mediaRecorderRef.current) {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+                mediaRecorderRef.current = new MediaRecorder(stream)
+            }
 
-    // typing state 
-    const [typing, setTyping] = useState(true)
+            const mediaRecorder = mediaRecorderRef.current
+
+            mediaRecorder.ondataavailable = e => chunks.push(e.data)
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(chunks, { type: "audio/mp3" })
+                setAudioBlob(blob)
+                chunks = []
+            }
+
+            mediaRecorder.start()
+        }
+
+        if (isRecording) {
+            startRecording()
+        } else {
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+                mediaRecorderRef.current.stop()
+            }
+        }
+
+        return () => {
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+                mediaRecorderRef.current.stop()
+            }
+        }
+    }, [isRecording])
+
+    useEffect(() => {
+        if (audioBlob) {
+            setAudioState(false);
+            const sendAudio = async () => {
+                const arrayBuffer = await audioBlob.arrayBuffer();
+                socket.emit("send_audioFile", arrayBuffer);
+            }
+            sendAudio()
+        }
+    }, [audioBlob])
+
+
+
+
+    //console.log("90 blog event", audioBlob)
+
 
     useEffect(() => {
         if (!socket) {
@@ -121,12 +172,17 @@ const ChatBot = () => {
             dispatch(setSessionId(sID))
         })
 
+        socket.on("audio_transcribed",(text)=>{
+            setUserMessage(text)
+        })
+
         return () => {
             socket.off("connection")
             socket.off("socket_id")
             socket.off("send_chunks")
             socket.off("send_messageId")
             socket.off("send_sessionId")
+            socket.off("audio_transcribed")
         };
     }, []);
 
@@ -181,7 +237,7 @@ const ChatBot = () => {
 
                 const newList = [...prev]
                 userTextResend = newList[idx - 1].content
-                newList[idx] = { ...newList[idx], content: "",messageId:"" }
+                newList[idx] = { ...newList[idx], content: "", messageId: "" }
                 const trimmedList = newList.slice(0, idx + 1)
                 return trimmedList
             })
@@ -303,8 +359,11 @@ const ChatBot = () => {
                     </button>
 
                     {/* Mic Button */}
-                    <button className="p-2 rounded-lg hover:bg-[#3a3b3f] transition">
-                        <Mic size={20} className="text-gray-300" />
+                    <button className={`p-2 rounded-lg hover:bg-[#3a3b3f] transition ${aduioState ? '':'cursor-not-allowed'}`}
+                        disabled={aduioState}
+
+                        onClick={() => setIsRecording((prev) => !prev)}>
+                        {isRecording ? <Square size={20} className="text-gray-300 rounded-sm animate-pulse" /> : <Mic size={20} className="text-gray-300" />}
                     </button>
                 </div>
             </div>
