@@ -4,7 +4,7 @@ import * as z from "zod";
 import OpenAI from "openai";
 import type { Request, Response } from "express";
 import { io,isRegenereate,sessionID,userID,userPrompt } from "../server.js";
-import { allUserMessages, getLastMessages, storeMessages, storeSessionId, storeSummarizeMessages } from "../db/model.js";
+import { allUserMessages, getLastMessages, storeMessages, storeSessionId, storeSummarizeMessages, storeUser } from "../db/model.js";
 import crypto from "crypto";
 
 
@@ -57,6 +57,9 @@ const imageGeneration = async (req: Request, res: Response) => {
         apiKey: process.env.API_KEY,
     })
 
+    if(userID){
+        await storeUser({userId:userID})
+    }
 
     // OLD MESSAGES
     const oldMessages = await getLastMessages({ sessionId:sessionID }) || []

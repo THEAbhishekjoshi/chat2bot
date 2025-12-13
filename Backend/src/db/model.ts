@@ -272,3 +272,20 @@ export async function storeSessionId({ sessionId, userId, title }: { sessionId: 
     console.log("Error during storing the session", error)
   }
 }
+
+// store user
+export async function storeUser({userId}:{userId:string}) {
+  try{
+    const storeQuery=`
+    INSERT INTO users(user_id)
+    VALUES ($1)
+    ON CONFLICT (user_id ) DO NOTHING
+    RETURNING *;
+    `
+    const values = [userId]
+    const result = await pool.query(storeQuery,values) 
+  }
+  catch(error){
+    console.log("Error during storing the user",error)
+  }
+}

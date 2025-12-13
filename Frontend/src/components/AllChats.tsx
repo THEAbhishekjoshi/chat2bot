@@ -1,10 +1,12 @@
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { setSessionId } from '@/features/globalstate/sessionState'
 import { fetchAllSessions, type sessionProps } from '@/features/sessions/sessions'
+import { auth } from '@/utils/FirebaseInit'
 import { useEffect, useState } from 'react'
 
 const AllChats = ({searchText}:{searchText:string}) => {
-    const userId = "100001"
+    // const userId = "100001"
+    const userId = localStorage.getItem("userId") ?? sessionStorage.getItem("userId") ?? "" 
     const dispatch = useAppDispatch()
 
     const currentSession = useAppSelector((state)=>state.globalState.currentSessionId)

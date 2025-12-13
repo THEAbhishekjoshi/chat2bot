@@ -7,6 +7,7 @@ import logo from "/logo1.svg";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { fetchAllChats, resetChats } from "@/features/chats/chats";
 import { setSessionId } from "@/features/globalstate/sessionState";
+import { auth } from "@/utils/FirebaseInit";
 
 
 export type MessageProps = {
@@ -18,7 +19,7 @@ export type MessageProps = {
 const ChatBot = () => {
     const dispatch = useAppDispatch()
     const sessionId = useAppSelector(state => state.globalState.currentSessionId);
-    const userId = "100001"
+    const userId = localStorage.getItem("userId") ?? sessionStorage.getItem("userId") ?? "" 
     let [userMessage, setUserMessage] = useState("");
     const [socketId, setSocketId] = useState("");
     const socketIdRef = useRef<string | null>(null)
