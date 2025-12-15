@@ -4,8 +4,8 @@ import type { PayloadAction } from '@reduxjs/toolkit'
 import type { RootState } from '../../app/store'
 
 
-export const fetchAllSessions = createAsyncThunk('session/allSessions', async ({userId}:{userId:string})=>{
-    const res = await fetchSessionsById(userId)
+export const fetchAllSessions = createAsyncThunk('session/allSessions', async ({userId,searchText}:{userId:string; searchText:string})=>{
+    const res = await fetchSessionsById(userId,searchText)
     return res.result
 })
 

@@ -1,17 +1,19 @@
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { setSessionId } from '@/features/globalstate/sessionState'
 import { fetchAllSessions, type sessionProps } from '@/features/sessions/sessions'
+import { auth } from '@/utils/FirebaseInit'
 import { useEffect, useState } from 'react'
 
-const AllChats = () => {
-    const userId = "100001"
+const AllChats = ({searchText}:{searchText:string}) => {
+    // const userId = "100001"
+    const userId = localStorage.getItem("userId") ?? sessionStorage.getItem("userId") ?? "" 
     const dispatch = useAppDispatch()
 
-        const currentSession = useAppSelector((state)=>state.globalState.currentSessionId)
+    const currentSession = useAppSelector((state)=>state.globalState.currentSessionId)
 
     useEffect(() => {
-        dispatch(fetchAllSessions({ userId }))
-    }, [currentSession])
+        dispatch(fetchAllSessions({ userId ,searchText}))
+    }, [currentSession,searchText])
 
     const sessionList = useAppSelector((state) => state.sessions)
 
@@ -20,6 +22,7 @@ const AllChats = () => {
     }
     return (
         <div className='w-full flex flex-col gap-2 h-full' >
+            
             {sessionList.map((s) => {
                 return <div className={`${currentSession ===s.sessionId ? 'bg-[#0f1011]':'bg-[#292a2e]'} w-70 flex flex-col gap-2 hover:bg-[#1E1F22] p-5 rounded-md`} onClick={()=>handleSessionId({sessionId:s.sessionId})} key={s.sessionId}>
                     {/* title */}

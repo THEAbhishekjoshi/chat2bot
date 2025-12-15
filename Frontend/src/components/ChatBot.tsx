@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { socket } from "../App";
+import { socket, socketInitialize } from "@/services/socketInitialize";
 import axios from "axios";
-import { Copy, Mic, RefreshCcw, Send } from "lucide-react";
+import { Copy, Mic, RefreshCcw, Send, Square } from "lucide-react";
 import user from "/user.svg";
 import logo from "/logo1.svg";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { fetchAllChats, resetChats } from "@/features/chats/chats";
 import { setSessionId } from "@/features/globalstate/sessionState";
-import { fetchAllSessions } from "@/features/sessions/sessions";
+import { auth } from "@/utils/FirebaseInit";
+
 
 export type MessageProps = {
     role: "user" | "assistant" | "",
@@ -16,50 +17,111 @@ export type MessageProps = {
 }
 
 const ChatBot = () => {
-    // test
-    //const { sessionId, userId } = { sessionId:"adc77497-a8a1-4dc2-81f7-ebe0a9fb84c6", userId:"100001" }
-
     const dispatch = useAppDispatch()
     const sessionId = useAppSelector(state => state.globalState.currentSessionId);
-    const userId = "100001"
+    const userId = localStorage.getItem("userId") ?? sessionStorage.getItem("userId") ?? "" 
+    let [userMessage, setUserMessage] = useState("");
+    const [socketId, setSocketId] = useState("");
+    const socketIdRef = useRef<string | null>(null)
+    const chatList = useAppSelector((state) => state.chats)
+    const [allMessages, setAllMessages] = useState<MessageProps[]>(chatList)
+    const [isRecording, setIsRecording] = useState(false)
+    let regenereate = false
+    const [typing, setTyping] = useState(true)
+    const messageRef = useRef<HTMLDivElement>(null)
+    const [audioBlob, setAudioBlob] = useState<Blob>()
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+    const [aduioState, setAudioState] = useState<boolean>(false)
+
+
     useEffect(() => {
         if (!sessionId) {
-            const created = crypto.randomUUID()
-            dispatch(setSessionId(created))
+            // const created = crypto.randomUUID()
+            // dispatch(setSessionId(created))
             return
         }
 
-        dispatch(resetChats())
+        //dispatch(resetChats())
         // If sessionId exists → fetch chats
         dispatch(fetchAllChats({ sessionId }))
     }, [sessionId])
 
-    const chatList = useAppSelector((state) => state.chats)
     useEffect(() => {
         setAllMessages(chatList);
     }, [chatList]);
 
 
-    let [userMessage, setUserMessage] = useState("");
-    const [socketId, setSocketId] = useState("");
-    const socketIdRef= useRef(null)
+    useEffect(() => {
+        let chunks: Blob[] = []
 
-    const [allMessages, setAllMessages] = useState<MessageProps[]>(chatList)
+        const startRecording = async () => {
+            if (!mediaRecorderRef.current) {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+                mediaRecorderRef.current = new MediaRecorder(stream)
+            }
 
+            const mediaRecorder = mediaRecorderRef.current
 
-    const messageRef = useRef<HTMLDivElement>(null)
-    let regenereate = false
+            mediaRecorder.ondataavailable = e => chunks.push(e.data)
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(chunks, { type: "audio/mp3" })
+                setAudioBlob(blob)
+                chunks = []
+            }
 
-    // typing state 
-    const [typing, setTyping] = useState(true)
+            mediaRecorder.start()
+        }
+
+        if (isRecording) {
+            startRecording()
+        } else {
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+                mediaRecorderRef.current.stop()
+            }
+        }
+
+        return () => {
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+                mediaRecorderRef.current.stop()
+            }
+        }
+    }, [isRecording])
 
     useEffect(() => {
+        if (audioBlob) {
+            setAudioState(false);
+            const sendAudio = async () => {
+                const arrayBuffer = await audioBlob.arrayBuffer();
+                socket.emit("send_audioFile", arrayBuffer);
+            }
+            sendAudio()
+        }
+    }, [audioBlob])
+
+
+
+
+    //console.log("90 blog event", audioBlob)
+
+
+    useEffect(() => {
+        if (!socket) {
+            socketInitialize()
+            console.log("socket initialized.")
+        }
+        socket.on("connection", () => {
+            console.log("connected:", socket)
+            if (socket.id) {
+                setSocketId(socket.id)
+                socketIdRef.current = socket.id
+            }
+
+        })
         socket.on("socket_id", (id) => {
-            console.log(socket,"id 61")
-            console.log(socket.id,"socket 62")
-            setSocketId(id)
-            //console.log(socketId,"62")
-            socketIdRef.current = id
+            console.log(id, "id 61 socket")
+            // console.log(socket.id,"socket 62")
+            // setSocketId(id)
+            // socketIdRef.current = id
         });
 
         socket.on("send_chunks", (chunk) => {
@@ -93,20 +155,35 @@ const ChatBot = () => {
                     };
                 }
 
-                if (newPrev[secondLastIndex].role === "user") {
-                    newPrev[secondLastIndex] = {
-                        ...newPrev[secondLastIndex],
-                        messageId: id2
-                    };
+                if (id2 !== "") {
+                    if (newPrev[secondLastIndex].role === "user") {
+                        newPrev[secondLastIndex] = {
+                            ...newPrev[secondLastIndex],
+                            messageId: id2
+                        };
+                    }
                 }
+
 
                 return newPrev;
             })
         })
+
+        socket.on("send_sessionId", (sID) => {
+            dispatch(setSessionId(sID))
+        })
+
+        socket.on("audio_transcribed",(text)=>{
+            setUserMessage(text)
+        })
+
         return () => {
-            socket.off("send_chunks");
-            socket.off("socket_id");
-            socket.off("send_responseId")
+            socket.off("connection")
+            socket.off("socket_id")
+            socket.off("send_chunks")
+            socket.off("send_messageId")
+            socket.off("send_sessionId")
+            socket.off("audio_transcribed")
         };
     }, []);
 
@@ -137,13 +214,10 @@ const ChatBot = () => {
         });
 
         // Trigger LangChain processing
-        console.log(socketId,"socketId 142 chatbot")
-        console.log(socketIdRef.current,"socketId 143 chatbot")
-        await axios.post("http://localhost:3001/chat/langchain/image", {
-            socketId:socketIdRef.current
+        console.log(socket.id, "socketId 150 chatbot")
+        const data = await axios.post("http://localhost:3001/chat/langchain/image", {
+            socketId: socket.id
         })
-
-        // typing enabled
         setTyping(true)
 
     };
@@ -164,7 +238,7 @@ const ChatBot = () => {
 
                 const newList = [...prev]
                 userTextResend = newList[idx - 1].content
-                newList[idx] = { ...newList[idx], content: "" }
+                newList[idx] = { ...newList[idx], content: "", messageId: "" }
                 const trimmedList = newList.slice(0, idx + 1)
                 return trimmedList
             })
@@ -228,10 +302,10 @@ const ChatBot = () => {
                                 m.role === "assistant" ?
                                     <div className="flex flex-col">
                                         <div ref={messageRef}>{m.content}</div>
-                                        {m.content.length > 0 ?
+                                        {m.messageId ?
                                             <div className="mt-4 flex gap-3 justify-end">
                                                 <div className="text-[0.7rem] bg-[#202633] rounded-md p-2 hover:bg-[#121722] cursor-pointer">
-                                                    <button className="flex items-center gap-1 " onClick={() => {
+                                                    <button className="flex items-center gap-1" onClick={() => {
                                                         if (m.messageId) {
                                                             //console.log("id:", m.messageId)
                                                             handleGenereateResponse(m.messageId)
@@ -286,8 +360,11 @@ const ChatBot = () => {
                     </button>
 
                     {/* Mic Button */}
-                    <button className="p-2 rounded-lg hover:bg-[#3a3b3f] transition">
-                        <Mic size={20} className="text-gray-300" />
+                    <button className={`p-2 rounded-lg hover:bg-[#3a3b3f] transition ${aduioState ? '':'cursor-not-allowed'}`}
+                        disabled={aduioState}
+
+                        onClick={() => setIsRecording((prev) => !prev)}>
+                        {isRecording ? <Square size={20} className="text-gray-300 rounded-sm animate-pulse" /> : <Mic size={20} className="text-gray-300" />}
                     </button>
                 </div>
             </div>

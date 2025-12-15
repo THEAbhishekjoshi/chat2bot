@@ -1,15 +1,20 @@
-import React from 'react'
 import { Plus, Ellipsis } from "lucide-react";
 import Tab from './common/Tab';
 import SearchWithFilter from './common/Searchbar';
 import AllChats from './AllChats';
 import { useAppDispatch } from '@/app/hooks';
 import { resetGlobalState } from '@/features/globalstate/sessionState';
+import { resetChats } from '@/features/chats/chats';
+import { useState } from "react";
 
 const ChatHistory = () => {
     const dispatch = useAppDispatch()
+    const [searchText, setSearchText] = useState("")
+    
+
     const handleClick =()=>{
         dispatch(resetGlobalState())
+        dispatch(resetChats())
     }
     return (
         <div className='w-full h-full p-2 relative flex flex-col gap-4'>
@@ -33,12 +38,12 @@ const ChatHistory = () => {
 
             {/* Search bar with filter */}
             <div className=''>
-                <SearchWithFilter/>
+                <SearchWithFilter onSearch={setSearchText}/>
             </div>
 
             {/* All Chats */}
             <div className='overflow-y-scroll chat-messages mt-2 rounded-md text-white flex items-center justify-center '>
-                <AllChats/>
+                <AllChats searchText={searchText}/>
             </div>
         </div>
     )

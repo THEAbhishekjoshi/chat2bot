@@ -171,7 +171,7 @@ export async function allUserMessages2({ sessionId }: { sessionId: string }) {
   }
 }
 
-export async function allUserSessions({ userId }: { userId: string }) {
+export async function allUserSessions({ userId,userInput }: { userId: string,userInput:string }) {
   try {
     const query = `
         SELECT 
@@ -189,15 +189,15 @@ export async function allUserSessions({ userId }: { userId: string }) {
           LIMIT 1
         ) m ON TRUE
        WHERE s.user_id = $1
+       AND s.title ILIKE $2
        ORDER BY s.created_at DESC;
     `
-    const result = await pool.query(query, [userId])
+    const searchTerm = `%${userInput}%`
+    const result = await pool.query(query, [userId,searchTerm])
     let messages = []
     for (let rows of result.rows) {
       messages.push({ sessionId: rows.session_id, userId: rows.user_id, title: rows.title, createdAt: rows.created_at,lastMessage: rows.last_message })
     }
-
-    // messages.push()
     return messages;
   }
   catch (error) {
@@ -251,7 +251,6 @@ export async function storeSummarizeMessages({ userId, summarizeText }: summariz
 
     const values = [userId, summarizeText]
     const result = await pool.query(storeQuery, values)
-    console.log('Inserted summarized-message:', result.rows[0])
   } catch (error) {
     console.log('Error during storing the summarized message', error)
   }
@@ -263,13 +262,30 @@ export async function storeSessionId({ sessionId, userId, title }: { sessionId: 
     const storeQuery = `
     INSERT INTO sessions(session_id,user_id,title)
     VALUES ($1 , $2, $3)
+    ON CONFLICT (session_id) DO NOTHING
     RETURNING *;
     `
     const values = [sessionId, userId, title]
     const result = await pool.query(storeQuery, values)
-    console.log('Inserted session:', result.rows[0])
   }
   catch (error) {
     console.log("Error during storing the session", error)
+  }
+}
+
+// store user
+export async function storeUser({userId}:{userId:string}) {
+  try{
+    const storeQuery=`
+    INSERT INTO users(user_id)
+    VALUES ($1)
+    ON CONFLICT (user_id ) DO NOTHING
+    RETURNING *;
+    `
+    const values = [userId]
+    const result = await pool.query(storeQuery,values) 
+  }
+  catch(error){
+    console.log("Error during storing the user",error)
   }
 }

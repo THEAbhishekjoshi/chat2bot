@@ -4,13 +4,12 @@ import * as z from "zod";
 import OpenAI from "openai";
 import type { Request, Response } from "express";
 import { io,isRegenereate,sessionID,userID,userPrompt } from "../server.js";
-import { allUserMessages, getLastMessages, storeMessages, storeSessionId, storeSummarizeMessages } from "../db/model.js";
+import { allUserMessages, getLastMessages, storeMessages, storeSessionId, storeSummarizeMessages, storeUser } from "../db/model.js";
 import crypto from "crypto";
 
 
 const imageGeneration = async (req: Request, res: Response) => {
     const { socketId } = req.body;
-    //console.log("userID(0)",userID,"sessionID",sessionID,"userPrompt",userPrompt)
     if (!socketId) return res.status(400).json({ error: "socketId required" })
 
     const prompt = userPrompt
@@ -58,14 +57,17 @@ const imageGeneration = async (req: Request, res: Response) => {
         apiKey: process.env.API_KEY,
     })
 
+    if(userID){
+        await storeUser({userId:userID})
+    }
 
     // OLD MESSAGES
     const oldMessages = await getLastMessages({ sessionId:sessionID }) || []
-    console.log("old messages:", oldMessages)
+    //console.log("old messages:", oldMessages)
 
     // All MESSAGES (string)
     const allMessages = await allUserMessages({userId :userID,sessionId:sessionID})
-    console.log("all messages:", allMessages)
+    ///console.log("all messages:", allMessages)
 
   
 
@@ -96,10 +98,9 @@ const imageGeneration = async (req: Request, res: Response) => {
         apiKey: process.env.API_KEY,
     })
     const titleText = titleResult.content || ""
-    console.log(titleText,"Title text")
 
     await storeSessionId({sessionId:sessionID,userId:userID,title:titleText as string})
-
+    // io.emit("send_sessionId",sessionID)
 
     // invoke 
     const summaryResult = await summarizer.invoke([
@@ -180,8 +181,9 @@ Respond as a supportive best friend using all context naturally.
 
 
     //  user message
-    const conversationId = crypto.randomUUID()
+    let conversationId = ""
     if(!isRegenereate){
+        conversationId = crypto.randomUUID()
         console.log("regenerate:",isRegenereate)
         console.log("no regneration")
         await storeMessages({ userId:userID,sessionId:sessionID, role: 'user', content: prompt,messageId:conversationId })
@@ -228,6 +230,8 @@ Respond as a supportive best friend using all context naturally.
 
     //
     io.emit("send_messageId", responseId, conversationId)
+    io.emit("send_sessionId",sessionID)
+
 
 };
 
