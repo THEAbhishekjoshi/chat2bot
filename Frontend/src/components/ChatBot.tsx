@@ -201,7 +201,7 @@ const ChatBot = () => {
         });
 
         // Trigger LangChain processing
-        const data = await axios.post("http://localhost:3001/chat/langchain/image", {
+        const data = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/chat/langchain/image`, {
             socketId: socket.id
         })
         setTyping(true)
@@ -357,3 +357,4 @@ const ChatBot = () => {
 };
 
 export default ChatBot;
+

@@ -12,20 +12,28 @@ import createUsersTable, { createMemoryTable, createMessagesTable, createSession
 import crypto from "crypto";
 import audioTOText from "./utils/audioToText.js";
 
+// FRONTEND URL 
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+
+const corsOptions = {
+  origin: [FRONTEND_URL, "http://localhost:5173"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  credentials: true,
+};
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+app.use(cors(corsOptions));
+
+//PORT 
+const PORT = process.env.PORT || 3001
 
 // HTTP server
 const server = http.createServer(app);
 
 // SOCKET INSTANCE
 export const io = new SocketIOServer(server, {
-    cors: {
-        origin: "http://localhost:5173",
-        methods: ["GET", "POST"],
-    },
+    cors: corsOptions,
 })
 
 // PROMPTS BY SOCKET ID
@@ -83,6 +91,6 @@ app.use("/chat", router);
 app.use("/chat", allChatRouter)
 app.use("/chat", allSessionsRouter)
 
-server.listen(3001, () => {
+server.listen(PORT, () => {
     console.log("Server running at http://localhost:3001");
 });
