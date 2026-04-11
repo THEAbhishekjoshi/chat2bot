@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { allUserMessages2 } from "../db/model.js";
 
 const getAllChats =async(req:Request,res:Response)=>{
-    const {sessionId} = req.params
+    const sessionId = Array.isArray(req.params.sessionId) ? req.params.sessionId[0] : req.params.sessionId
 
     if(sessionId){
         const messages = await allUserMessages2({sessionId}) 

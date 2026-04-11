@@ -3,7 +3,7 @@ import { allUserSessions } from "../db/model.js";
 
 
 export const getAllSessions=async(req:Request,res:Response)=>{
-    const {userId} = req.params
+    const userId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId
     const {searchText} = req.body
 
     if(userId){
