@@ -1,6 +1,4 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import type { PayloadAction } from '@reduxjs/toolkit'
-import type { RootState } from '../../app/store'
 import { fetchBySessionId } from './chatsApi'
 import type { MessageProps } from '@/components/ChatBot'
 
@@ -22,7 +20,7 @@ export const chatSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
-            .addCase(fetchAllChats.fulfilled, (state, action) => {
+            .addCase(fetchAllChats.fulfilled, (_state, action) => {
                 //state.push(...action.payload)
                 return action.payload
             })

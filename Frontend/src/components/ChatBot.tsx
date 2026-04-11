@@ -5,9 +5,8 @@ import { Copy, Mic, RefreshCcw, Send, Square } from "lucide-react";
 import user from "/user.svg";
 import logo from "/logo1.svg";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
-import { fetchAllChats, resetChats } from "@/features/chats/chats";
+import { fetchAllChats } from "@/features/chats/chats";
 import { setSessionId } from "@/features/globalstate/sessionState";
-import { auth } from "@/utils/FirebaseInit";
 
 
 export type MessageProps = {
@@ -21,7 +20,6 @@ const ChatBot = () => {
     const sessionId = useAppSelector(state => state.globalState.currentSessionId);
     const userId = localStorage.getItem("userId") ?? sessionStorage.getItem("userId") ?? "" 
     let [userMessage, setUserMessage] = useState("");
-    const [socketId, setSocketId] = useState("");
     const socketIdRef = useRef<string | null>(null)
     const chatList = useAppSelector((state) => state.chats)
     const [allMessages, setAllMessages] = useState<MessageProps[]>(chatList)
@@ -104,12 +102,11 @@ const ChatBot = () => {
         }
         socket.on("connection", () => {
             if (socket.id) {
-                setSocketId(socket.id)
                 socketIdRef.current = socket.id
             }
 
         })
-        socket.on("socket_id", (id) => {
+        socket.on("socket_id", () => {
         });
 
         socket.on("send_chunks", (chunk) => {
@@ -201,7 +198,7 @@ const ChatBot = () => {
         });
 
         // Trigger LangChain processing
-        const data = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/chat/langchain/image`, {
+        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/chat/langchain/image`, {
             socketId: socket.id
         })
         setTyping(true)

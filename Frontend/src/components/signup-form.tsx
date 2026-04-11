@@ -17,7 +17,7 @@ import { auth } from "@/utils/FirebaseInit"
 import { createUserWithEmailAndPassword } from "firebase/auth"
 import { Eye, EyeClosed } from "lucide-react"
 import { useState } from "react"
-import { Link, Navigate, useNavigate } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 
 export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {

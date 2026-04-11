@@ -1,6 +1,5 @@
 import Sidebar from '@/components/common/Iconbutton'
 import Message from '@/components/Message'
-import React from 'react'
 
 const ChatBotFriend = () => {
   return (

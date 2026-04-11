@@ -1,7 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { fetchSessionsById } from './sessionApi';
-import type { PayloadAction } from '@reduxjs/toolkit'
-import type { RootState } from '../../app/store'
 
 
 export const fetchAllSessions = createAsyncThunk('session/allSessions', async ({userId,searchText}:{userId:string; searchText:string})=>{
@@ -26,7 +24,7 @@ export const sessionSlice = createSlice({
     },
     extraReducers:(builder)=>{
         builder
-          .addCase(fetchAllSessions.fulfilled,(state,action)=>{
+          .addCase(fetchAllSessions.fulfilled,(_state,action)=>{
             return action.payload
           })
     }

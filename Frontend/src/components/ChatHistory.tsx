@@ -1,4 +1,4 @@
-import { Plus, Ellipsis } from "lucide-react";
+import { Plus } from "lucide-react";
 import Tab from './common/Tab';
 import SearchWithFilter from './common/Searchbar';
 import AllChats from './AllChats';
