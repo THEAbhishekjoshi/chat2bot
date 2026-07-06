@@ -14,7 +14,17 @@ export type sessionProps={
     createdAt:string,
     lastMessage:string
 }
-const initialState:sessionProps[] =[]
+
+interface sessionState{
+    sessions:sessionProps[]
+    error: string | null
+    loading: boolean 
+}
+const initialState:sessionState = {
+    sessions: [],
+    error: null,
+    loading: false
+}
 
 export const sessionSlice = createSlice({
     name:"session",
@@ -24,9 +34,18 @@ export const sessionSlice = createSlice({
     },
     extraReducers:(builder)=>{
         builder
-          .addCase(fetchAllSessions.fulfilled,(_state,action)=>{
-            return action.payload
+          .addCase(fetchAllSessions.fulfilled,(state,action)=>{
+            state.loading = false
+            state.sessions = action.payload
+            state.error = null
           })
+          .addCase(fetchAllSessions.pending,(state)=>{
+            state.loading = true
+          })
+            .addCase(fetchAllSessions.rejected,(state,action)=>{ 
+                state.loading = false
+                state.error = action.payload as string || "Something went wrong"
+            })   
     }
 
 })

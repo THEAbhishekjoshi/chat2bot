@@ -24,10 +24,10 @@ export default function Sidebar() {
   const [activeTab, setActiveTab] = React.useState("");
   const [isChatPanelOpen, setIsChatPanelOpen] = React.useState(false);
 
-  const sidePanelWidth = useMemo(() => isChatPanelOpen ? 'w-120' : 'w-16', [isChatPanelOpen]);
+  const sidePanelWidth = useMemo(() => isChatPanelOpen ? 'w-[30rem]' : 'w-16', [isChatPanelOpen]);
 
-  const toggleSidePannel = (props:string) => {
-    if(activeTab !== '' || activeTab === props) {
+  const toggleSidePannel = (props: string) => {
+    if (activeTab !== '' || activeTab === props) {
       setActiveTab('');
       setIsChatPanelOpen(false);
       return
@@ -53,7 +53,7 @@ export default function Sidebar() {
             active={activeTab === "chat"}
             click={() => toggleSidePannel('chat')}
           />
-{/* 
+          {/* 
           <IconButton
             icon={<SlidersHorizontal size={18} />}
             active={activeTab === "settings-tab"}
@@ -84,8 +84,10 @@ export default function Sidebar() {
       </div>
 
       {/* Content Area */}
-      <div>
-        {activeTab === "chat" && <ChatHistory />}
+      <div
+        className={`overflow-hidden  ${isChatPanelOpen ? "w-[300px]" : "w-0"}`}
+      >
+        <ChatHistory />
       </div>
 
     </div>

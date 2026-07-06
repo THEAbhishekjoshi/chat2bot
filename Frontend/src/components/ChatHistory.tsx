@@ -42,7 +42,7 @@ const ChatHistory = () => {
             </div>
 
             {/* All Chats */}
-            <div className='overflow-y-scroll chat-messages mt-2 rounded-md text-white flex items-center justify-center '>
+            <div className='overflow-y-scroll chat-messages mt-2 rounded-md text-white  flex-1 min-h-0'>
                 <AllChats searchText={searchText}/>
             </div>
         </div>
