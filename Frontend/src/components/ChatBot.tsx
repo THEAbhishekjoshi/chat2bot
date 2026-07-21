@@ -18,7 +18,7 @@ export type MessageProps = {
 const ChatBot = () => {
     const dispatch = useAppDispatch()
     const sessionId = useAppSelector(state => state.globalState.currentSessionId);
-    const userId = localStorage.getItem("userId") ?? sessionStorage.getItem("userId") ?? "" 
+    const userId = localStorage.getItem("userId") ?? sessionStorage.getItem("userId") ?? ""
     let [userMessage, setUserMessage] = useState("");
     const socketIdRef = useRef<string | null>(null)
     const chatList = useAppSelector((state) => state.chats)
@@ -157,7 +157,7 @@ const ChatBot = () => {
             dispatch(setSessionId(sID))
         })
 
-        socket.on("audio_transcribed",(text)=>{
+        socket.on("audio_transcribed", (text) => {
             setUserMessage(text)
         })
 
@@ -244,11 +244,11 @@ const ChatBot = () => {
         <div className={`flex flex-col items-center ${(allMessages.length > 0 && allMessages[0].role.length > 0) ? '' : 'justify-center'} mx-auto w-full h-full bg-[#3F424A] text-white px-2 sm:px-6 md:px-10 `}>
             {/* chats */}
             {(allMessages.length > 0 && allMessages[0].role.length > 0) ? <div
-                className="w-full mt-2 flex-1  py-5 chatmessages overflow-y-auto chat-messages "
+                className="w-full lg:w-3/4 mt-2 flex-1 py-5 overflow-y-auto chat-messages"
                 style={{ height: "calc(100vh - 8rem)" }}
             >
                 {allMessages.map((m, i) => (
-                    <div key={i} className="mb-2 ">
+                    <div key={i} className="mb-2">
 
                         {/* Role Header */}
                         <div className="font-semibold">
@@ -289,7 +289,7 @@ const ChatBot = () => {
                                                 <div className="text-[0.7rem] bg-[#202633] rounded-md p-2 hover:bg-[#121722] cursor-pointer">
                                                     <button className="flex items-center gap-1" onClick={() => {
                                                         if (m.messageId) {
-                                                          
+
                                                             handleGenereateResponse(m.messageId)
 
                                                         }
@@ -311,11 +311,10 @@ const ChatBot = () => {
                     </div>
                 ))}
             </div>
-                : <div className="text-xl sm:text-2xl md:text-3xl lg:text-5xl mb-4">What's on your mind today?</div>}
+                : <div className="text-xl sm:text-xl md:text-2xl lg:text-3xl mb-4">What's on your mind today?</div>}
 
-            <div className="w-full py-3 ">
-                <div className="flex items-center  sm:gap-3 bg-[#2b2c30] px-1 sm:px-4 py-3 rounded-xl border border-[#3a3b3f]">
-
+            <div className="w-full lg:w-3/4 py-3">
+                <div className="flex items-center sm:gap-3 bg-[#2b2c30] px-1 sm:px-4 py-3 rounded-xl border border-[#3a3b3f]">
                     {/* Text input */}
                     <textarea
                         rows={1}
@@ -330,18 +329,14 @@ const ChatBot = () => {
                             }
                         }}
                         disabled={typing ? false : true}
-
                     />
-
-
                     {/* Send Button */}
                     <button className="p-2 rounded-lg hover:bg-[#3a3b3f] transition"
                         onClick={() => sendButton()}>
                         <Send size={18} className="text-gray-300" />
                     </button>
-
                     {/* Mic Button */}
-                    <button className={`p-2 rounded-lg hover:bg-[#3a3b3f] transition ${aduioState ? '':'cursor-not-allowed'}`}
+                    <button className={`p-2 rounded-lg hover:bg-[#3a3b3f] transition ${aduioState ? '' : 'cursor-not-allowed'}`}
                         disabled={aduioState}
 
                         onClick={() => setIsRecording((prev) => !prev)}>

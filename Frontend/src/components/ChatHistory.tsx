@@ -10,9 +10,9 @@ import { useState } from "react";
 const ChatHistory = () => {
     const dispatch = useAppDispatch()
     const [searchText, setSearchText] = useState("")
-    
 
-    const handleClick =()=>{
+
+    const handleClick = () => {
         dispatch(resetGlobalState())
         dispatch(resetChats())
     }
@@ -26,24 +26,24 @@ const ChatHistory = () => {
 
                 <div className='flex gap-2'>
                     <button className='bg-[#15c37a] text-white rounded-md flex items-center justify-center w-[1.8rem] h-[1.8rem]'
-                    onClick={()=>handleClick()}><Plus size={18}/></button>
+                        onClick={() => handleClick()}><Plus size={18} /></button>
                     {/* <button className='bg-[#1E1F22] text-white rounded-md flex items-center justify-center w-[1.8rem] h-[1.8rem]'><Ellipsis /></button> */}
                 </div>
             </div>
 
             {/* Toggle button */}
             <div className=''>
-                <Tab props={["Chats","Saved"]} design='w-full h-[3rem] text-[#15c37a] bg-[#575B65] ' defaultTab='Chats'/>
+                <Tab props={["Chats", "Saved"]} design='w-full h-[3rem] text-[#15c37a] bg-[#575B65] ' defaultTab='Chats' />
             </div>
 
             {/* Search bar with filter */}
             <div className=''>
-                <SearchWithFilter onSearch={setSearchText}/>
+                <SearchWithFilter onSearch={setSearchText} />
             </div>
 
             {/* All Chats */}
-            <div className='overflow-y-scroll chat-messages mt-2 rounded-md text-white  flex-1 min-h-0'>
-                <AllChats searchText={searchText}/>
+            <div className='overflow-y-auto chat-history-messages mt-2 rounded-md text-white flex-1 min-h-0'>
+                <AllChats searchText={searchText} />
             </div>
         </div>
     )
