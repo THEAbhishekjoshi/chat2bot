@@ -171,7 +171,7 @@ export async function allUserMessages2({ sessionId }: { sessionId: string }) {
   }
 }
 
-export async function allUserSessions({ userId,userInput }: { userId: string,userInput:string }) {
+export async function allUserSessions({ userId, userInput }: { userId: string, userInput: string }) {
   try {
     const query = `
         SELECT 
@@ -193,10 +193,10 @@ export async function allUserSessions({ userId,userInput }: { userId: string,use
        ORDER BY s.created_at DESC;
     `
     const searchTerm = `%${userInput}%`
-    const result = await pool.query(query, [userId,searchTerm])
+    const result = await pool.query(query, [userId, searchTerm])
     let messages = []
     for (let rows of result.rows) {
-      messages.push({ sessionId: rows.session_id, userId: rows.user_id, title: rows.title, createdAt: rows.created_at,lastMessage: rows.last_message })
+      messages.push({ sessionId: rows.session_id, userId: rows.user_id, title: rows.title, createdAt: rows.created_at, lastMessage: rows.last_message })
     }
     return messages;
   }
@@ -274,18 +274,86 @@ export async function storeSessionId({ sessionId, userId, title }: { sessionId: 
 }
 
 // store user
-export async function storeUser({userId}:{userId:string}) {
-  try{
-    const storeQuery=`
+export async function storeUser({ userId }: { userId: string }) {
+  try {
+    const storeQuery = `
     INSERT INTO users(user_id)
     VALUES ($1)
     ON CONFLICT (user_id ) DO NOTHING
     RETURNING *;
     `
     const values = [userId]
-    const result = await pool.query(storeQuery,values) 
+    const result = await pool.query(storeQuery, values)
   }
-  catch(error){
-    console.log("Error during storing the user",error)
+  catch (error) {
+    console.log("Error during storing the user", error)
   }
+}
+
+// get Message Count
+export const getMessageCount = async ({
+  userId,
+  sessionId
+}: {
+  userId: string,
+  sessionId: string
+}) => {
+  const result = await pool.query(
+    `
+        SELECT COUNT(*) 
+        FROM messages
+        WHERE user_id=$1 AND session_ref=$2
+        `,
+    [userId, sessionId]
+  )
+
+  return Number(result.rows[0].count);
+}
+
+// get summarize messages 
+export const getSummarizeMessages = async ({
+  userId
+}: {
+  userId: string
+}) => {
+
+  const result = await pool.query(
+    `
+        SELECT summarize_text
+        FROM memory
+        WHERE user_id = $1
+        ORDER BY updated_at DESC
+        LIMIT 1
+        `,
+    [userId]
+  );
+
+  if (result.rows.length === 0) {
+    return ""
+  }
+
+  return result.rows[0].summarize_text
+}
+
+export const getSession = async (
+  sessionId: string
+) => {
+
+  const result = await pool.query(
+    `
+        SELECT *
+        FROM sessions
+        WHERE session_id = $1
+        LIMIT 1
+        `,
+    [sessionId]
+  );
+
+
+  if (result.rows.length === 0) {
+    return null
+  }
+
+
+  return result.rows[0]
 }
