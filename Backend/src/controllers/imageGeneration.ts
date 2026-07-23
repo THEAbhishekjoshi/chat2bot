@@ -1,11 +1,10 @@
 import { createAgent } from "langchain";
-import { ChatOpenAI } from "@langchain/openai";
 import { initChatModel } from "langchain";
 import * as z from "zod";
 import OpenAI from "openai";
 import type { Request, Response } from "express";
 import { io, isRegenereate, sessionID, userID, userPrompt } from "../server.js";
-import { allUserMessages, getLastMessages, getMessageCount, getSession, getSummarizeMessages, storeMessages, storeSessionId, storeSummarizeMessages, storeUser } from "../db/model.js";
+import { getExtractedFacts, getLastMessages, getMessageCount, getSession, getSummarizeMessages, storeExtractedFacts, storeMessages, storeSessionId, storeSummarizeMessages, storeUser } from "../db/model.js";
 import crypto from "crypto";
 
 
@@ -23,8 +22,16 @@ const imageGeneration = async (req: Request, res: Response) => {
         await storeUser({ userId: userID })
     }
 
-    // OLD MESSAGES
-    const oldMessages = await getLastMessages({ sessionId: sessionID }) || []
+    // Last 10 Messages
+    const lastTenMessages = await getLastMessages({ sessionId: sessionID }) || []
+
+    // Facts
+    let facts = await getExtractedFacts(userID)
+
+    // Summary Text
+    let summaryText = await getSummarizeMessages({
+        userId: userID
+    }) || ""
 
     // invoke title agent
     const session = await getSession(sessionID)
@@ -53,130 +60,26 @@ const imageGeneration = async (req: Request, res: Response) => {
 
     }
 
-    //  user message
+    //  store user message
     let conversationId = ""
     if (!isRegenereate) {
         conversationId = crypto.randomUUID()
         await storeMessages({ userId: userID, sessionId: sessionID, role: 'user', content: prompt, messageId: conversationId })
     }
 
-    // summarizer model
-    const summarizer = await initChatModel("google-genai:gemini-2.5-flash-lite")
-
-    // invoke summary agent     
-    const messageCount = await getMessageCount({
-        userId: userID,
-        sessionId: sessionID
-    })
-    let summaryText = await getSummarizeMessages({
-        userId: userID
-    }) || ""
-
-
-    if (messageCount % 10 == 0) {
-        const summaryResult = await summarizer.invoke([
-            {
-                role: "system",
-                content: `
-                You are a memory extraction system for an AI assistant.
-
-                Your job is NOT to summarize the conversation.
-                Your job is to extract ONLY information that will remain useful in future conversations.
-
-                Analyze ONLY user messages.
-
-                Extract:
-
-                1. Personal information:
-                - name
-                - location (only if explicitly provided)
-                - occupation/student status
-                - important life details
-
-                2. Long-term interests:
-                - hobbies
-                - skills
-                - technologies they are learning
-                - favorite topics
-
-                3. Goals:
-                - career goals
-                - learning goals
-                - ongoing projects
-                - future plans
-
-                4. Preferences:
-                - communication style
-                - coding preferences
-                - writing preferences
-                - recurring choices
-
-                5. Important context:
-                - recurring problems
-                - decisions already made
-                - things the assistant should remember
-
-                Rules:
-                - Do NOT store temporary emotions or one-time requests.
-                - Do NOT store greetings or casual conversation.
-                - Do NOT store questions unless they reveal a preference or goal.
-                - Remove duplicate information.
-                - Keep only stable facts.
-                - If there is nothing worth remembering, return exactly:
-                ""
-
-                Output format:
-
-                Name:
-                -
-
-                Background:
-                -
-
-                Skills:
-                -
-
-                Projects:
-                -
-
-                Goals:
-                -
-
-                Preferences:
-                -
-
-                Important notes:
-                -`,
-            },
-            {
-                role: "user",
-                content:
-                    `Existing memory:
-                    ${summaryText}
-
-                    New conversation messages:
-                    ${oldMessages.map(
-                        m => `${m.role}: ${m.content}`
-                    ).join("\n")}
-
-                    Update the memory.
-                    Keep previous useful information.
-                    Remove outdated information`
-            },
-        ])
-
-        summaryText = summaryResult.content as string;
-        //save the summary to db
-        await storeSummarizeMessages({ userId: userID, summarizeText: summaryText as string })
-    }
-
-
+    // system Prompt 
     const systemPrompt = `
-           You are an AI chatbot designed to behave like the user's caring best friend.
+        You are an AI chatbot designed to behave like the user's caring best friend.
+        You have your own friendly nickname: Nova.
 
-        You have two sources of context:
-        1. recentMessages → the last 10 messages from the current conversation  
+        If someone asks your name,
+        always answer "I'm Nova."
+
+        You have three sources of context:
+
+        1. recentMessages → the last 10 messages from the current conversation
         2. longTermSummary → a compressed summary of all past user info extracted from earlier conversations
+        3. userFacts → stable facts extracted from previous conversations (name, skills, goals, projects, preferences)
 
         Use longTermSummary ONLY to:
         - recall stable user preferences (skills, goals, projects, personality, writing style)
@@ -212,7 +115,7 @@ const imageGeneration = async (req: Request, res: Response) => {
         longTermSummary: """${summaryText}"""
 
         recentMessages: (already provided before this)
-        newUserMessage: """${prompt}"""
+        User Facts: """${facts}"""
 
         Respond as a supportive best friend using all context naturally.
 
@@ -263,12 +166,12 @@ const imageGeneration = async (req: Request, res: Response) => {
 
     // SIGNAL start
     res.json({ status: "streaming_started" })
-    console.log("over here 248")
+
     // STREAMING
     const stream = await agent.stream(
         {
             messages: [
-                ...oldMessages.map(m => ({
+                ...lastTenMessages.map(m => ({
                     role: m.role === "ai" ? "assistant" : "user",
                     content: m.content,
                 })),
@@ -279,8 +182,13 @@ const imageGeneration = async (req: Request, res: Response) => {
             ]
         },
         { streamMode: "messages" }
-    );
-
+    )
+    console.log(
+        lastTenMessages.map(m => ({
+            role: m.role,
+            content: m.content,
+        }))
+    )
     const responseId = crypto.randomUUID()
 
 
@@ -291,9 +199,177 @@ const imageGeneration = async (req: Request, res: Response) => {
         aiMessage += token
         io.to(socketId).emit("send_chunks", token);
     }
-    console.log("over here 280")
+
     await storeMessages({ userId: userID, sessionId: sessionID, role: 'assistant', content: aiMessage, messageId: responseId })
-    console.log("over here 282")
+
+
+    const latestMessages = await getLastMessages({
+        sessionId: sessionID,
+    }) || []
+
+    // extractor model 
+    const extractor = await initChatModel("google-genai:gemini-2.5-flash-lite")
+
+    // invoke extractor agent     
+    const extractorResult = await extractor.invoke([
+        {
+            role: "system",
+            content: `
+            You are a memory extraction system for an AI assistant.
+
+            Your job is NOT to summarize the conversation.
+            Your job is to extract ONLY information that will remain useful in future conversations.
+
+            Analyze ONLY user messages.
+
+            Extract:
+
+            1. Personal information:
+            - name
+            - location (only if explicitly provided)
+            - occupation/student status
+            - important life details
+
+            2. Long-term interests:
+            - hobbies
+            - skills
+            - what are they learning
+            - favorite topics
+
+            3. Goals:
+            - career goals
+            - learning goals
+            - ongoing projects
+            - future plans
+
+            4. Preferences:
+            - communication style
+            - coding preferences
+            - writing preferences
+            - recurring choices
+
+            5. Important context:
+            - recurring problems
+            - decisions already made
+            - things the assistant should remember
+
+            Rules:
+            - Do NOT store temporary emotions or one-time requests.
+            - Do NOT store greetings or casual conversation.
+            - Do NOT store questions unless they reveal a preference or goal.
+            - Remove duplicate information.
+            - Keep only stable facts.
+            - If there is nothing worth remembering, return exactly:
+            ""
+
+            Output format:
+
+            Name:
+            -
+
+            Background:
+            -
+
+            Skills:
+            -
+
+            Projects:
+            -
+
+            Goals:
+            -
+
+            Preferences:
+            -
+
+            Important notes:
+            -`,
+        },
+        {
+            role: "user",
+            content:
+                `Existing memory:
+                ${facts}
+
+                New conversation messages:
+                ${latestMessages.filter(m => m.role === "user").map(m => `user: ${m.content}`).join("\n")}
+
+                Update the memory.
+                Keep previous useful information.
+                Remove outdated information`
+        },
+    ])
+    const extractedFact = extractorResult.content as string
+    await storeExtractedFacts({
+        userId: userID,
+        extractedFacts: extractedFact
+    })
+
+
+    // summarizer model
+    const summarizer = await initChatModel("google-genai:gemini-2.5-flash-lite")
+    // invoke summary agent     
+    const messageCount = await getMessageCount({
+        userId: userID,
+        sessionId: sessionID
+    })
+
+
+    if (messageCount % 20 == 0) {
+        const summaryResult = await summarizer.invoke([
+            {
+                role: "system",
+                content: `You are a conversation summarization system.
+
+                Your task is to maintain a rolling summary of the conversation.
+
+                You will receive:
+                1. The previous summary.
+                2. The latest conversation messages.
+
+                Update the summary by incorporating the new conversation.
+
+                Rules:
+                - Preserve important context needed to continue future conversations.
+                - Keep the summary concise (200-400 words maximum).
+                - Include:
+                - topics discussed
+                - decisions made
+                - unresolved questions
+                - ongoing tasks
+                - important events
+                - Do NOT repeat information already present unless it changes.
+                - Do NOT store long-term user facts (those belong to another memory system).
+                - Remove information that is no longer relevant.
+                - Rewrite the summary as a coherent paragraph instead of appending text.
+
+                Return ONLY the updated summary.
+                Maximum length: 300 words.
+                `
+            },
+            {
+                role: "user",
+                content: `
+                Previous summary:
+                ${summaryText}
+
+                Recent conversation:
+                ${latestMessages.map(
+                    m => `${m.role}: ${m.content}`
+                ).join("\n")}
+
+                Recent ai Message: ${aiMessage}
+
+                Update the summary.
+`
+            },
+        ])
+
+        summaryText = summaryResult.content as string;
+        //save the summary to db
+        await storeSummarizeMessages({ userId: userID, summarizeText: summaryText as string })
+    }
+
     //
     io.emit("send_messageId", responseId, conversationId)
     io.emit("send_sessionId", sessionID)

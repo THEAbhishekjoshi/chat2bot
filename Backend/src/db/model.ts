@@ -74,6 +74,15 @@ export async function createMemoryTable() {
   console.log('Memory table ensured.');
 }
 
+export async function migrateMemoryTableAddExtractedFacts() {
+  await pool.query(`
+    ALTER TABLE memory
+    ADD COLUMN IF NOT EXISTS extracted_facts TEXT DEFAULT '';
+  `);
+
+  console.log("Memory table migrated.");
+}
+
 //---FUNCTIONS
 
 //
@@ -111,10 +120,15 @@ export async function updateResponseId({ responseId }: { responseId: string }) {
 export async function getLastMessages({ sessionId }: { sessionId: string }) {
   try {
     const query = `
-      SELECT * FROM messages
-      WHERE session_ref = $1
-      ORDER BY created_at DESC
-      LIMIT 10
+      SELECT *
+      FROM (
+        SELECT *
+        FROM messages
+        WHERE session_ref = $1
+        ORDER BY id DESC
+        LIMIT 10
+      ) AS recent_messages
+      ORDER BY id ASC;
     `;
 
     const result = await pool.query(query, [sessionId])
@@ -356,4 +370,43 @@ export const getSession = async (
 
 
   return result.rows[0]
+}
+
+// to get extracted Facts 
+export async function getExtractedFacts(userId: string) {
+  const result = await pool.query(
+    `
+    SELECT extracted_facts
+    FROM memory
+    WHERE user_id = $1;
+    `,
+    [userId]
+  );
+
+  if (result.rows.length === 0) {
+    return null;
+  }
+
+  return result.rows[0].extracted_facts;
+}
+
+// to store facts
+export async function storeExtractedFacts({
+  userId,
+  extractedFacts,
+}: {
+  userId: string;
+  extractedFacts: string;
+}) {
+  await pool.query(
+    `
+    UPDATE memory
+    SET extracted_facts = $1,
+        updated_at = NOW()
+    WHERE user_id = $2;
+    `,
+    [extractedFacts, userId]
+  );
+
+  console.log("Extracted facts updated.");
 }

@@ -8,7 +8,7 @@ import cors from "cors";
 import router from "./routes/langChain.js";
 import allChatRouter from './routes/chatSliceRoute.js'
 import allSessionsRouter from './routes/sessionSliceRoutes.js'
-import createUsersTable, { createMemoryTable, createMessagesTable, createSessionTable, updateResponseId } from "./db/model.js";
+import createUsersTable, { createMemoryTable, createMessagesTable, createSessionTable, migrateMemoryTableAddExtractedFacts, updateResponseId } from "./db/model.js";
 import crypto from "crypto";
 import audioTOText from "./utils/audioToText.js";
 
@@ -16,9 +16,9 @@ import audioTOText from "./utils/audioToText.js";
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
 const corsOptions = {
-  origin: [FRONTEND_URL, "http://localhost:5173"],
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  credentials: true,
+    origin: [FRONTEND_URL, "http://localhost:5173"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    credentials: true,
 };
 
 const app = express();
@@ -50,6 +50,7 @@ async function initDB() {
     await createSessionTable()
     await createMessagesTable()
     await createMemoryTable()
+    await migrateMemoryTableAddExtractedFacts()
 }
 initDB()
 
