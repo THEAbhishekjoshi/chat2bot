@@ -16,7 +16,7 @@ const Message = () => {
             </div>
 
             {/* Main content */}
-            <div className='mt-2 h-full w-full bg-[#3F424A] rounded-md overflow-hidden'>
+            <div className='mt-2 h-full w-full bg-[#3F424A] rounded-md overflow-y-auto relative chat-messages'>
                 <ChatBot />
             </div>
         </div>

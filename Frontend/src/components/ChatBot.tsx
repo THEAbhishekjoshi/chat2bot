@@ -244,8 +244,8 @@ const ChatBot = () => {
         <div className={`flex flex-col items-center ${(allMessages.length > 0 && allMessages[0].role.length > 0) ? '' : 'justify-center'} mx-auto w-full h-full bg-[#3F424A] text-white px-2 sm:px-6 md:px-10 `}>
             {/* chats */}
             {(allMessages.length > 0 && allMessages[0].role.length > 0) ? <div
-                className="w-full lg:w-3/4 mt-2 flex-1 py-5 overflow-y-auto chat-messages"
-                style={{ height: "calc(100vh - 8rem)" }}
+                className="w-full lg:w-3/4 mt-2 flex-1 py-5 pb-24"
+            // style={{ height: "calc(100vh - 8rem)" }}
             >
                 {allMessages.map((m, i) => (
                     <div key={i} className="mb-2">
@@ -313,7 +313,7 @@ const ChatBot = () => {
             </div>
                 : <div className="text-xl sm:text-xl md:text-2xl lg:text-3xl mb-4">What's on your mind today?</div>}
 
-            <div className="w-full lg:w-3/4 py-3">
+            <div className="w-full lg:w-3/4 sticky bottom-0 bg-[#3F424A] py-3 z-10">
                 <div className="flex items-center sm:gap-3 bg-[#2b2c30] px-1 sm:px-4 py-3 rounded-xl border border-[#3a3b3f]">
                     {/* Text input */}
                     <textarea

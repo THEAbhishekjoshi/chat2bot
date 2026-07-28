@@ -120,9 +120,9 @@ export async function updateResponseId({ responseId }: { responseId: string }) {
 export async function getLastMessages({ sessionId }: { sessionId: string }) {
   try {
     const query = `
-      SELECT *
+      SELECT id, role, content
       FROM (
-        SELECT *
+        SELECT id, role, content
         FROM messages
         WHERE session_ref = $1
         ORDER BY id DESC

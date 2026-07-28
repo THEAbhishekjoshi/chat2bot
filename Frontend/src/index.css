@@ -5,7 +5,7 @@
 
 
 .chat-messages::-webkit-scrollbar {
-  width: 10px;
+  width: 8px;
 }
 
 .chat-messages::-webkit-scrollbar-track {
@@ -15,7 +15,7 @@
 
 .chat-messages::-webkit-scrollbar-thumb {
   background: #6a6767;
-  border-radius: 20px;
+  border-radius: 8px;
   /* border: 2px solid #0f0f0f; */
 }
 
