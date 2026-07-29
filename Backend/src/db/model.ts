@@ -193,6 +193,7 @@ export async function allUserSessions({ userId, userInput }: { userId: string, u
           s.user_id,
           s.title,
           s.created_at,
+          s.is_saved,
           m.content AS last_message 
           FROM sessions s
         LEFT JOIN LATERAL (
@@ -210,7 +211,14 @@ export async function allUserSessions({ userId, userInput }: { userId: string, u
     const result = await pool.query(query, [userId, searchTerm])
     let messages = []
     for (let rows of result.rows) {
-      messages.push({ sessionId: rows.session_id, userId: rows.user_id, title: rows.title, createdAt: rows.created_at, lastMessage: rows.last_message })
+      messages.push({
+        sessionId: rows.session_id,
+        userId: rows.user_id,
+        title: rows.title,
+        createdAt: rows.created_at,
+        lastMessage: rows.last_message,
+        isSaved: rows.is_saved
+      })
     }
     return messages;
   }
@@ -408,5 +416,68 @@ export async function storeExtractedFacts({
     [extractedFacts, userId]
   );
 
-  console.log("Extracted facts updated.");
+  console.log("Extracted facts updated.")
+}
+
+// Delete session and its messages
+export async function deleteSession(sessionId: string) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN')
+    // Delete messages first to satisfy foreign key constraint
+    await client.query('DELETE FROM messages WHERE session_ref = $1', [sessionId])
+    // Delete session
+    const res = await client.query('DELETE FROM sessions WHERE session_id = $1 RETURNING *', [sessionId])
+    await client.query('COMMIT');
+    return res.rows[0];
+  } catch (error) {
+    await client.query('ROLLBACK')
+    console.error('Error during deleting session:', error)
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+// Update session title
+export async function updateSessionTitle({ sessionId, title }: { sessionId: string; title: string }) {
+  try {
+    const query = `
+      UPDATE sessions
+      SET title = $1
+      WHERE session_id = $2
+      RETURNING *;
+    `;
+    const result = await pool.query(query, [title, sessionId])
+    return result.rows[0];
+  } catch (error) {
+    console.error('Error during updating session title:', error)
+    throw error;
+  }
+}
+
+// Migrate session table to add is_saved
+export async function migrateSessionTableAddIsSaved() {
+  await pool.query(`
+    ALTER TABLE sessions
+    ADD COLUMN IF NOT EXISTS is_saved BOOLEAN DEFAULT FALSE;
+  `)
+  console.log("Session table migrated with is_saved column.")
+}
+
+// Toggle session is_saved status
+export async function toggleSaveSession(sessionId: string) {
+  try {
+    const query = `
+      UPDATE sessions
+      SET is_saved = NOT COALESCE(is_saved, FALSE)
+      WHERE session_id = $1
+      RETURNING *;
+    `;
+    const result = await pool.query(query, [sessionId])
+    return result.rows[0]
+  } catch (error) {
+    console.error('Error during toggling session save:', error)
+    throw error
+  }
 }

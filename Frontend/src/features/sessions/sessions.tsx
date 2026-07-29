@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import { fetchSessionsById } from './sessionApi';
+import { fetchSessionsById, deleteSessionApi, updateSessionTitleApi, toggleSaveSessionApi } from './sessionApi';
 
 
 export const fetchAllSessions = createAsyncThunk('session/allSessions', async ({userId,searchText}:{userId:string; searchText:string})=>{
@@ -7,12 +7,28 @@ export const fetchAllSessions = createAsyncThunk('session/allSessions', async ({
     return res.result
 })
 
+export const deleteSessionThunk = createAsyncThunk('session/deleteSession', async (sessionId: string) => {
+    await deleteSessionApi(sessionId)
+    return sessionId
+})
+
+export const updateSessionTitleThunk = createAsyncThunk('session/updateSessionTitle', async ({ sessionId, title }: { sessionId: string, title: string }) => {
+    await updateSessionTitleApi(sessionId, title)
+    return { sessionId, title }
+})
+
+export const toggleSaveSessionThunk = createAsyncThunk('session/toggleSaveSession', async (sessionId: string) => {
+    await toggleSaveSessionApi(sessionId)
+    return sessionId
+})
+
 export type sessionProps={
     sessionId:string,
     userId:string,
     title:string,
     createdAt:string,
-    lastMessage:string
+    lastMessage:string,
+    isSaved:boolean
 }
 
 interface sessionState{
@@ -42,12 +58,29 @@ export const sessionSlice = createSlice({
           .addCase(fetchAllSessions.pending,(state)=>{
             state.loading = true
           })
-            .addCase(fetchAllSessions.rejected,(state,action)=>{ 
-                state.loading = false
-                state.error = action.payload as string || "Something went wrong"
-            })   
+          .addCase(fetchAllSessions.rejected,(state,action)=>{ 
+              state.loading = false
+              state.error = action.payload as string || "Something went wrong"
+          })
+          .addCase(deleteSessionThunk.fulfilled, (state, action) => {
+              state.sessions = state.sessions.filter(s => s.sessionId !== action.payload)
+          })
+          .addCase(updateSessionTitleThunk.fulfilled, (state, action) => {
+              const session = state.sessions.find(s => s.sessionId === action.payload.sessionId)
+              if (session) {
+                  session.title = action.payload.title
+              }
+          })
+          .addCase(toggleSaveSessionThunk.fulfilled, (state, action) => {
+              const session = state.sessions.find(s => s.sessionId === action.payload)
+              if (session) {
+                  session.isSaved = !session.isSaved
+              }
+          })
     }
 
 })
 
 export default sessionSlice.reducer
+
+
