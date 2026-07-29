@@ -10,6 +10,7 @@ import { useState } from "react";
 const ChatHistory = () => {
     const dispatch = useAppDispatch()
     const [searchText, setSearchText] = useState("")
+    const [activeTab, setActiveTab] = useState("Chats")
 
 
     const handleClick = () => {
@@ -33,7 +34,7 @@ const ChatHistory = () => {
 
             {/* Toggle button */}
             <div className=''>
-                <Tab props={["Chats", "Saved"]} design='w-full h-[3rem] text-[#15c37a] bg-[#575B65] ' defaultTab='Chats' />
+                <Tab props={["Chats", "Saved"]} design='w-full h-[3rem] text-[#15c37a] bg-[#575B65] ' activeTab={activeTab} onTabChange={setActiveTab} />
             </div>
 
             {/* Search bar with filter */}
@@ -43,10 +44,11 @@ const ChatHistory = () => {
 
             {/* All Chats */}
             <div className='overflow-y-auto chat-history-messages mt-2 rounded-md text-white flex-1 min-h-0'>
-                <AllChats searchText={searchText} />
+                <AllChats searchText={searchText} activeTab={activeTab} />
             </div>
         </div>
     )
 }
+
 
 export default ChatHistory

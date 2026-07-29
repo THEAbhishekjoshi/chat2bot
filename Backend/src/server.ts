@@ -8,7 +8,7 @@ import cors from "cors";
 import router from "./routes/langChain.js";
 import allChatRouter from './routes/chatSliceRoute.js'
 import allSessionsRouter from './routes/sessionSliceRoutes.js'
-import createUsersTable, { createMemoryTable, createMessagesTable, createSessionTable, migrateMemoryTableAddExtractedFacts, updateResponseId } from "./db/model.js";
+import createUsersTable, { createMemoryTable, createMessagesTable, createSessionTable, migrateMemoryTableAddExtractedFacts, updateResponseId, migrateSessionTableAddIsSaved } from "./db/model.js";
 import crypto from "crypto";
 import audioTOText from "./utils/audioToText.js";
 
@@ -51,6 +51,7 @@ async function initDB() {
     await createMessagesTable()
     await createMemoryTable()
     await migrateMemoryTableAddExtractedFacts()
+    await migrateSessionTableAddIsSaved()
 }
 initDB()
 

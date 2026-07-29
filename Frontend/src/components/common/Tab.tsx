@@ -8,12 +8,13 @@ import { Bookmark, MessageCircle } from 'lucide-react'
 export interface tabProps {
     props: string[],
     design?: string,
-    defaultTab: string
+    activeTab: string,
+    onTabChange: (tab: string) => void
 }
-const Tab = ({ props, design, defaultTab }: tabProps) => {
+const Tab = ({ props, design, activeTab, onTabChange }: tabProps) => {
     return (
         <div>
-            <Tabs defaultValue={defaultTab}>
+            <Tabs value={activeTab} onValueChange={onTabChange}>
                 <TabsList className={design} >
                     {props.map((v) => {
                         return <TabsTrigger value={v} key={v} className='
