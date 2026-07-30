@@ -1,6 +1,5 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit'
 import { fetchSessionsById, deleteSessionApi, updateSessionTitleApi, toggleSaveSessionApi } from './sessionApi';
-import { act } from 'react';
 
 
 export const fetchAllSessions = createAsyncThunk('session/allSessions', async ({ userId, searchText }: { userId: string; searchText: string }) => {

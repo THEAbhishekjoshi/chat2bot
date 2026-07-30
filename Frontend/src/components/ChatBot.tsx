@@ -22,6 +22,7 @@ const ChatBot = () => {
     const chatList = useAppSelector((state) => state.chats)
     const userId = localStorage.getItem("userId") ?? sessionStorage.getItem("userId") ?? ""
 
+
     let [userMessage, setUserMessage] = useState("")
     const socketIdRef = useRef<string | null>(null)
     const [allMessages, setAllMessages] = useState<MessageProps[]>(chatList)
@@ -31,7 +32,8 @@ const ChatBot = () => {
     const messageRef = useRef<HTMLDivElement>(null)
     const [audioBlob, setAudioBlob] = useState<Blob>()
     const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-    const [aduioState, setAudioState] = useState<boolean>(false)
+    const mediaStreamRef = useRef<MediaStream | null>(null)
+    const [isTranscribing, setIsTranscribing] = useState(false)
 
 
     useEffect(() => {
@@ -47,50 +49,120 @@ const ChatBot = () => {
 
 
     useEffect(() => {
-        let chunks: Blob[] = []
-
         const startRecording = async () => {
-            if (!mediaRecorderRef.current) {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-                mediaRecorderRef.current = new MediaRecorder(stream)
+            try {
+                const stream =
+                    await navigator.mediaDevices.getUserMedia({
+                        audio: true
+                    })
+
+                // Save the microphone stream
+                mediaStreamRef.current = stream
+
+                const supportedMimeType =
+                    MediaRecorder.isTypeSupported(
+                        "audio/webm;codecs=opus"
+                    )
+                        ? "audio/webm;codecs=opus"
+                        : "audio/webm"
+                const mediaRecorder =
+                    new MediaRecorder(stream, {
+                        mimeType: supportedMimeType
+                    })
+
+                mediaRecorderRef.current = mediaRecorder
+
+                const chunks: Blob[] = []
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        chunks.push(event.data)
+                    }
+                }
+
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(
+                        chunks,
+                        {
+                            type: supportedMimeType
+                        }
+                    )
+
+                    setAudioBlob(blob);
+
+                    // Stop the actual microphone
+                    mediaStreamRef.current
+                        ?.getTracks()
+                        .forEach(track => {
+                            track.stop();
+                        });
+
+                    mediaStreamRef.current = null;
+                    mediaRecorderRef.current = null;
+                }
+
+                mediaRecorder.start()
+            } catch (error) {
+                console.error(
+                    "Could not access microphone:",
+                    error
+                );
+
+                setIsRecording(false)
+
+                alert(
+                    "Microphone access failed. Please allow microphone permission."
+                )
             }
-
-            const mediaRecorder = mediaRecorderRef.current
-
-            mediaRecorder.ondataavailable = e => chunks.push(e.data)
-            mediaRecorder.onstop = () => {
-                const blob = new Blob(chunks, { type: "audio/mp3" })
-                setAudioBlob(blob)
-                chunks = []
-            }
-
-            mediaRecorder.start()
-        }
+        };
 
         if (isRecording) {
             startRecording()
         } else {
-            if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-                mediaRecorderRef.current.stop()
+            const recorder =
+                mediaRecorderRef.current;
+
+            if (
+                recorder &&
+                recorder.state !== "inactive"
+            ) {
+                recorder.stop()
             }
         }
 
         return () => {
-            if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-                mediaRecorderRef.current.stop()
+            const recorder =
+                mediaRecorderRef.current;
+
+            if (
+                recorder &&
+                recorder.state !== "inactive"
+            ) {
+                recorder.stop();
             }
         }
     }, [isRecording])
 
     useEffect(() => {
-        if (audioBlob) {
-            setAudioState(false);
-            const sendAudio = async () => {
-                const arrayBuffer = await audioBlob.arrayBuffer();
-                socket.emit("send_audioFile", arrayBuffer);
+        if (!audioBlob) return;
+        const sendAudio = async () => {
+            try {
+                setIsTranscribing(true);
+
+                const arrayBuffer =
+                    await audioBlob.arrayBuffer();
+
+                socket.emit(
+                    "send_audioFile",
+                    arrayBuffer
+                )
             }
-            sendAudio()
+            catch (error) {
+                console.error(error);
+                setIsTranscribing(false);
+            }
         }
+        sendAudio()
     }, [audioBlob])
 
     useEffect(() => {
@@ -180,6 +252,7 @@ const ChatBot = () => {
 
         socket.on("audio_transcribed", (text) => {
             setUserMessage(text)
+            setIsTranscribing(false)
         })
 
         return () => {
@@ -358,11 +431,20 @@ const ChatBot = () => {
                         <Send size={18} className="text-gray-300" />
                     </button>
                     {/* Mic Button */}
-                    <button className={`p-2 rounded-lg hover:bg-[#3a3b3f] transition ${aduioState ? '' : 'cursor-not-allowed'}`}
-                        disabled={aduioState}
-
-                        onClick={() => setIsRecording((prev) => !prev)}>
-                        {isRecording ? <Square size={20} className="text-gray-300 rounded-sm animate-pulse" /> : <Mic size={20} className="text-gray-300" />}
+                    <button
+                        className={`p-2 rounded-lg transition ${isTranscribing ? "cursor-not-allowed opacity-50" : "hover:bg-[#3a3b3f]"}`}
+                        disabled={isTranscribing}
+                        onClick={() =>
+                            setIsRecording(prev => !prev)
+                        }
+                    >
+                        {isTranscribing ? (
+                            <div className=" w-5 h-5 rounded-full border-2 border-gray-300 border-t-transparent animate-spin" />
+                        ) : isRecording ? (
+                            <Square size={20} className="text-red-400 animate-pulse" />
+                        ) : (
+                            < Mic size={20} className="text-gray-300" />
+                        )}
                     </button>
                 </div>
             </div>

@@ -11,6 +11,7 @@ import allSessionsRouter from './routes/sessionSliceRoutes.js'
 import createUsersTable, { createMemoryTable, createMessagesTable, createSessionTable, migrateMemoryTableAddExtractedFacts, updateResponseId, migrateSessionTableAddIsSaved } from "./db/model.js";
 import crypto from "crypto";
 import audioTOText from "./utils/audioToText.js";
+import audioToTextV2 from "./utils/audioToTextV2.js";
 
 // FRONTEND URL 
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
@@ -78,10 +79,27 @@ io.on("connection", (socket) => {
     });
 
     socket.on("send_audioFile", async (audioData) => {
-        const text = await audioTOText(audioData)
-        console.log("Transcribed text:", text)
-        socket.emit("audio_transcribed", text)
-    });
+        try {
+            const text = await audioToTextV2(audioData);
+
+            socket.emit(
+                "audio_transcribed",
+                text
+            )
+        }
+        catch (error) {
+
+            console.error(
+                "Audio transcription failed:",
+                error
+            )
+
+            socket.emit(
+                "audio_transcribed",
+                ""
+            )
+        }
+    })
 
     socket.on("disconnect", () => {
         console.log("disconnected")

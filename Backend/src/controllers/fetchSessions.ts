@@ -1,9 +1,15 @@
 import type { Request, Response } from "express";
 import { allUserSessions, deleteSession, updateSessionTitle, toggleSaveSession } from "../db/model.js";
 
+type SessionParams = {
+    sessionId: string;
+}
+type UserParams = {
+    userId: string;
+}
 
-export const getAllSessions = async (req: Request, res: Response) => {
-    const userId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId
+export const getAllSessions = async (req: Request<UserParams>, res: Response) => {
+    const userId = req.params.userId
     const { searchText } = req.body
 
     if (userId) {
@@ -20,7 +26,7 @@ export const getAllSessions = async (req: Request, res: Response) => {
     }
 }
 
-export const deleteSessionController = async (req: Request, res: Response) => {
+export const deleteSessionController = async (req: Request<SessionParams>, res: Response) => {
     const sessionId = req.params.sessionId
     if (sessionId) {
         try {
@@ -41,7 +47,7 @@ export const deleteSessionController = async (req: Request, res: Response) => {
     }
 }
 
-export const updateSessionTitleController = async (req: Request, res: Response) => {
+export const updateSessionTitleController = async (req: Request<SessionParams>, res: Response) => {
     const sessionId = req.params.sessionId
     const { title } = req.body;
     if (sessionId && title !== undefined) {
@@ -63,7 +69,7 @@ export const updateSessionTitleController = async (req: Request, res: Response) 
     }
 }
 
-export const toggleSaveSessionController = async (req: Request, res: Response) => {
+export const toggleSaveSessionController = async (req: Request<SessionParams>, res: Response) => {
     const sessionId = req.params.sessionId;
     if (sessionId) {
         try {
