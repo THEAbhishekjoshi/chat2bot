@@ -7,6 +7,7 @@ import logo from "/logo1.svg";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { fetchAllChats } from "@/features/chats/chats";
 import { setSessionId } from "@/features/globalstate/sessionState";
+import { addNewSessions, updateLastMessage } from "@/features/sessions/sessions";
 
 
 export type MessageProps = {
@@ -17,11 +18,12 @@ export type MessageProps = {
 
 const ChatBot = () => {
     const dispatch = useAppDispatch()
-    const sessionId = useAppSelector(state => state.globalState.currentSessionId);
-    const userId = localStorage.getItem("userId") ?? sessionStorage.getItem("userId") ?? ""
-    let [userMessage, setUserMessage] = useState("");
-    const socketIdRef = useRef<string | null>(null)
+    const sessionId = useAppSelector(state => state.globalState.currentSessionId)
     const chatList = useAppSelector((state) => state.chats)
+    const userId = localStorage.getItem("userId") ?? sessionStorage.getItem("userId") ?? ""
+
+    let [userMessage, setUserMessage] = useState("")
+    const socketIdRef = useRef<string | null>(null)
     const [allMessages, setAllMessages] = useState<MessageProps[]>(chatList)
     const [isRecording, setIsRecording] = useState(false)
     let regenereate = false
@@ -34,13 +36,8 @@ const ChatBot = () => {
 
     useEffect(() => {
         if (!sessionId) {
-            // const created = crypto.randomUUID()
-            // dispatch(setSessionId(created))
             return
         }
-
-        //dispatch(resetChats())
-        // If sessionId exists → fetch chats
         dispatch(fetchAllChats({ sessionId }))
     }, [sessionId])
 
@@ -123,6 +120,18 @@ const ChatBot = () => {
             })
         })
 
+        socket.on(
+            "update_sidebar_last_message",
+            (updatedSessionId, lastMessage) => {
+                dispatch(
+                    updateLastMessage({
+                        sessionId: updatedSessionId,
+                        lastMessage
+                    })
+                )
+            }
+        )
+
         socket.on("send_messageId", (id1, id2) => {
             setAllMessages((prev) => {
                 if (prev.length < 2) return prev;
@@ -153,8 +162,20 @@ const ChatBot = () => {
             })
         })
 
-        socket.on("send_sessionId", (sID) => {
+        socket.on("send_sessionId_with_title", (sID, title) => {
             dispatch(setSessionId(sID))
+
+            dispatch(
+                addNewSessions({
+                    sessionId: sID,
+                    userId,
+                    title: title || "New Chat",
+                    createdAt: new Date().toISOString(),
+                    lastMessage: "",
+                    isSaved: false
+                })
+            )
+
         })
 
         socket.on("audio_transcribed", (text) => {
@@ -166,9 +187,10 @@ const ChatBot = () => {
             socket.off("socket_id")
             socket.off("send_chunks")
             socket.off("send_messageId")
-            socket.off("send_sessionId")
             socket.off("audio_transcribed")
-        };
+            socket.off("send_sessionId_with_title")
+            socket.off("update_sidebar_last_message")
+        }
     }, []);
 
     const sendButton = async (overrideMessage?: string) => {
@@ -198,7 +220,7 @@ const ChatBot = () => {
         });
 
         // Trigger LangChain processing
-        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/chat/langchain/image`, {
+        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/chat/respond`, {
             socketId: socket.id
         })
         setTyping(true)

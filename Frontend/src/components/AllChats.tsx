@@ -108,10 +108,11 @@ const AllChats = ({ searchText, activeTab }: { searchText: string; activeTab: st
                                         className="text-sm font-bold bg-[#1e2022] text-white border border-[#444] rounded px-2 py-0.5 w-full focus:outline-none focus:border-green-500"
                                         value={editTitle}
                                         onChange={(e) => setEditTitle(e.target.value)}
-                                        onBlur={() => handleRenameSave(s.sessionId)}
+                                        onBlur={() => { handleRenameSave(s.sessionId); s.title = editTitle.trim() }}
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter') {
                                                 handleRenameSave(s.sessionId)
+                                                s.title = editTitle.trim()
                                             } else if (e.key === 'Escape') {
                                                 setEditingSessionId(null)
                                             }
@@ -137,8 +138,8 @@ const AllChats = ({ searchText, activeTab }: { searchText: string; activeTab: st
                                         <Heart
                                             size={14}
                                             className={`cursor-pointer transition-all duration-150 ${s.isSaved
-                                                    ? 'fill-[#15c37a] text-[#15c37a] opacity-100'
-                                                    : 'opacity-0 group-hover:opacity-100 text-[#ABABAB] hover:text-white'
+                                                ? 'fill-[#15c37a] text-[#15c37a] opacity-100'
+                                                : 'opacity-0 group-hover:opacity-100 text-[#ABABAB] hover:text-white'
                                                 }`}
                                             onClick={(e) => {
                                                 e.stopPropagation()

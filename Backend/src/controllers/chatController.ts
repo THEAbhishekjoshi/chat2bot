@@ -57,7 +57,7 @@ const imageGeneration = async (req: Request, res: Response) => {
         const titleText = titleResult.content || ""
 
         await storeSessionId({ sessionId: sessionID, userId: userID, title: titleText as string })
-
+        io.emit("send_sessionId_with_title", sessionID, titleText)
     }
 
     //  store user message
@@ -139,10 +139,8 @@ const imageGeneration = async (req: Request, res: Response) => {
             });
 
             // img object
-            console.log(img)
             if (img.data && img.data[0] && img.data[0].url) {
                 const imageUrl = img.data[0].url
-                console.log("image URl:", imageUrl)
                 //hasImageUrl = imageUrl
                 return imageUrl
             }
@@ -183,12 +181,12 @@ const imageGeneration = async (req: Request, res: Response) => {
         },
         { streamMode: "messages" }
     )
-    console.log(
-        lastTenMessages.map(m => ({
-            role: m.role,
-            content: m.content,
-        }))
-    )
+    // console.log(
+    //     lastTenMessages.map(m => ({
+    //         role: m.role,
+    //         content: m.content,
+    //     }))
+    // )
     const responseId = crypto.randomUUID()
 
 
@@ -201,6 +199,13 @@ const imageGeneration = async (req: Request, res: Response) => {
     }
 
     await storeMessages({ userId: userID, sessionId: sessionID, role: 'assistant', content: aiMessage, messageId: responseId })
+    io.to(socketId).emit(
+        "update_sidebar_last_message",
+        sessionID,
+        aiMessage
+    )
+    io.to(socketId).emit("send_messageId", responseId, conversationId)
+    // io.emit("send_sessionId", sessionID)
 
 
     const latestMessages = await getLastMessages({
@@ -371,8 +376,8 @@ const imageGeneration = async (req: Request, res: Response) => {
     }
 
     //
-    io.emit("send_messageId", responseId, conversationId)
-    io.emit("send_sessionId", sessionID)
+    // io.emit("send_messageId", responseId, conversationId)
+    // io.emit("send_sessionId", sessionID)
 
 
 };
