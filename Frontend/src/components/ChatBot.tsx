@@ -410,14 +410,14 @@ const ChatBot = () => {
                 </div>
             }
 
-            <div className="w-full lg:w-4/6 sticky bottom-0 bg-[#3F424A] py-3 z-10">
+            <div className="w-full lg:w-4/6 sticky bottom-0  py-3 z-10">
                 <div className="flex flex-col md:flex-row md:items-center gap-3 bg-[#2b2c30] px-1 sm:px-4 py-3 rounded-xl border border-[#3a3b3f]">
                     {/* Text input */}
                     <textarea
                         rows={1}
                         placeholder="Ask questions..."
                         value={userMessage}
-                        className="flex-1 bg-transparent outline-none text-white placeholder-gray-400 text-sm resize-none p-1 leading-6 max-h-[72px] overflow-y-auto"
+                        className="flex-1 bg-transparent outline-none text-white placeholder-gray-400 text-sm resize-none p-1 leading-6 textarea-scroll max-h-[72px] overflow-y-auto"
                         onChange={(e) => {
 
                             setUserMessage(e.target.value)

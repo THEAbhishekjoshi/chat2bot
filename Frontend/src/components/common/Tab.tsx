@@ -24,13 +24,13 @@ const Tab = ({ props, design, activeTab, onTabChange }: tabProps) => {
                                     uppercase
                                     text-[0.8rem]
                                     '>  {v == "Chats" ?
-                                <div className='flex gap-2'>
+                                <div className='flex gap-2 text-[0.7rem] sm:text-sm  items-center justify-center'>
                                     <MessageCircle />
                                     CHATS
-                                    
+
                                 </div>
                                 :
-                                <div className='flex gap-2'>
+                                <div className='flex gap-2 text-[0.7rem] sm:text-sm  items-center justify-center'>
                                     <Bookmark />
                                     SAVED
                                 </div>

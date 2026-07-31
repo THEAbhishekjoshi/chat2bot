@@ -139,7 +139,7 @@ const AllChats = ({ searchText, activeTab }: { searchText: string; activeTab: st
                                             size={14}
                                             className={`cursor-pointer transition-all duration-150 ${s.isSaved
                                                 ? 'fill-[#15c37a] text-[#15c37a] opacity-100'
-                                                : 'opacity-0 group-hover:opacity-100 text-[#ABABAB] hover:text-white'
+                                                : 'lg:opacity-0 lg:group-hover:opacity-100 text-[#ABABAB] hover:text-white'
                                                 }`}
                                             onClick={(e) => {
                                                 e.stopPropagation()
