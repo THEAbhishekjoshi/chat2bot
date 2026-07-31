@@ -19,17 +19,17 @@ export type MessageProps = {
 const ChatBot = () => {
     const dispatch = useAppDispatch()
     const sessionId = useAppSelector(state => state.globalState.currentSessionId)
-    const chatList = useAppSelector((state) => state.chats)
+    // const chatList = useAppSelector((state) => state.chats)
     const userId = localStorage.getItem("userId") ?? sessionStorage.getItem("userId") ?? ""
 
-
+    const { messages: chatList, loading: fetchLoading, error } = useAppSelector((state) => state.chats)
     let [userMessage, setUserMessage] = useState("")
     const socketIdRef = useRef<string | null>(null)
     const [allMessages, setAllMessages] = useState<MessageProps[]>(chatList)
     const [isRecording, setIsRecording] = useState(false)
-    let regenereate = false
-    const [typing, setTyping] = useState(true)
-    const messageRef = useRef<HTMLDivElement>(null)
+    const regenerateRef = useRef(false)
+    const [isGenerating, setIsGenerating] = useState(false)
+    // const messageRef = useRef<HTMLDivElement>(null)
     const [audioBlob, setAudioBlob] = useState<Blob>()
     const mediaRecorderRef = useRef<MediaRecorder | null>(null)
     const mediaStreamRef = useRef<MediaStream | null>(null)
@@ -37,9 +37,7 @@ const ChatBot = () => {
 
 
     useEffect(() => {
-        if (!sessionId) {
-            return
-        }
+        if (!sessionId) return
         dispatch(fetchAllChats({ sessionId }))
     }, [sessionId])
 
@@ -183,9 +181,12 @@ const ChatBot = () => {
                 const last = prev[prev.length - 1]
 
                 if (last?.role === "assistant") {
-                    last.content += chunk;
+                    const updatedLast = {
+                        ...last,
+                        content: last.content + chunk
+                    }
 
-                    return [...prev.slice(0, -1), last]
+                    return [...prev.slice(0, -1), updatedLast]
                 }
 
                 return [...prev, { role: "assistant", content: chunk }]
@@ -264,44 +265,69 @@ const ChatBot = () => {
             socket.off("send_sessionId_with_title")
             socket.off("update_sidebar_last_message")
         }
-    }, []);
+    }, [])
 
-    const sendButton = async (overrideMessage?: string) => {
+    const sendButton = async (
+        overrideMessage?: string
+    ) => {
+        const finalMessage =
+            overrideMessage ?? userMessage
 
-        const finalMessage = overrideMessage ?? userMessage
+        if (!finalMessage.trim()) return
 
-        //no typing
-        setTyping(false)
-        if (!finalMessage.trim()) return;
+        const shouldRegenerate = regenerateRef.current
 
-        // Add user message
-        if (!overrideMessage) {
-            setAllMessages((prev) => [
-                ...prev,
-                { role: "user", content: finalMessage, messageId: "" },
-                { role: "assistant", content: "", messageId: "" },
-            ]);
-            setUserMessage("");
+        regenerateRef.current = false
+
+        setIsGenerating(true)
+
+        try {
+            // Add user message
+            if (!overrideMessage) {
+                setAllMessages((prev) => [
+                    ...prev,
+                    {
+                        role: "user",
+                        content: finalMessage,
+                        messageId: ""
+                    },
+                    {
+                        role: "assistant",
+                        content: "",
+                        messageId: ""
+                    }
+                ])
+
+                setUserMessage("")
+            }
+            // Send prompt to server via socket
+            socket.emit("send_prompt", {
+                userId,
+                sessionId,
+                text: finalMessage,
+                regenereate: shouldRegenerate
+            })
+            // Trigger LangChain processing
+            await axios.post(
+                `${import.meta.env.VITE_BACKEND_URL}/chat/respond`,
+                {
+                    socketId: socket.id
+                }
+            )
+        } catch (error) {
+            console.error(
+                "Failed to generate response:",
+                error
+            )
+        } finally {
+            setIsGenerating(false)
         }
+    }
 
-        // Send prompt to server via socket
-        socket.emit("send_prompt", {
-            userId: userId,
-            sessionId: sessionId,
-            text: finalMessage,
-            regenereate
-        });
 
-        // Trigger LangChain processing
-        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/chat/respond`, {
-            socketId: socket.id
-        })
-        setTyping(true)
-
-    };
     const handleCopy = (text: string) => {
         navigator.clipboard.writeText(text)
-    };
+    }
 
 
     const handleGenereateResponse = async (messageId: string) => {
@@ -325,7 +351,7 @@ const ChatBot = () => {
 
             // To genereate new response 
             setTimeout(() => {
-                regenereate = true
+                regenerateRef.current = true
                 sendButton(userTextResend)
             }, 500);
 
@@ -334,6 +360,38 @@ const ChatBot = () => {
             throw new Error('messgeId not provided.')
         }
     };
+
+    if (fetchLoading) {
+        return (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-[#3F424A] text-white">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-green-200 border-t-green-500" />
+
+                <p className="text-sm font-medium text-gray-300">
+                    Loading chats...
+                </p>
+            </div>
+        )
+    }
+
+    if (error) {
+        return (
+            <div className="flex h-full w-full items-center justify-center bg-[#3F424A] px-4">
+                <div className="w-full max-w-md rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-center shadow-lg">
+                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/20 text-2xl text-red-400">
+                        !
+                    </div>
+
+                    <h2 className="text-lg font-semibold text-red-300">
+                        Failed to load chats
+                    </h2>
+
+                    <p className="mt-2 break-words text-sm text-gray-300">
+                        {error}
+                    </p>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className={`flex flex-col items-center ${(allMessages.length > 0 && allMessages[0].role.length > 0) ? '' : 'justify-center'} mx-auto w-full h-full bg-[#3F424A] text-white px-2 sm:px-6 md:px-10 `}>
@@ -376,7 +434,7 @@ const ChatBot = () => {
                                 ) : (
                                     m.role === "assistant" ?
                                         <div className="flex flex-col">
-                                            <div ref={messageRef}>{m.content}</div>
+                                            <div>{m.content}</div>
                                             {m.messageId ?
                                                 <div className="mt-4 flex gap-3 justify-end">
                                                     <div className="text-[0.7rem] bg-[#202633] rounded-md p-2 hover:bg-[#121722] cursor-pointer">
@@ -433,11 +491,16 @@ const ChatBot = () => {
                                 sendButton()
                             }
                         }}
-                        disabled={typing ? false : true}
+                        disabled={isGenerating}
                     />
                     <div className="flex justify-end shrink-0">
                         {/* Send Button */}
-                        <button className="p-2 rounded-lg hover:bg-[#3a3b3f] transition"
+                        <button className={`p-2 rounded-lg transition
+                            ${isGenerating
+                                ? "cursor-not-allowed opacity-50"
+                                : "hover:bg-[#3a3b3f]"
+                            }
+                        `}
                             onClick={() => sendButton()}>
                             <Send size={18} className="text-gray-300" />
                         </button>
