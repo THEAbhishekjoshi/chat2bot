@@ -8,7 +8,16 @@ import { getExtractedFacts, getLastMessages, getMessageCount, getSession, getSum
 import crypto from "crypto";
 
 
-const imageGeneration = async (req: Request, res: Response) => {
+// models
+const chatModel = await initChatModel(
+    "google-genai:gemini-2.5-flash"
+)
+
+const lightModel = await initChatModel(
+    "google-genai:gemini-2.5-flash-lite"
+)
+
+const chatController = async (req: Request, res: Response) => {
     const { socketId } = req.body;
     if (!socketId) return res.status(400).json({ error: "socketId required" })
 
@@ -37,9 +46,7 @@ const imageGeneration = async (req: Request, res: Response) => {
     const session = await getSession(sessionID)
 
     if ((!session || !session.title)) {
-        // title model
-        const title = await initChatModel("google-genai:gemini-2.5-flash-lite")
-        const titleResult = await title.invoke([
+        const titleResult = await lightModel.invoke([
             {
                 role: "system",
                 content: `Generate a short and concise chat title in 4-6 words based on the users message. Do NOT answer the question, just summarize it as a title. 
@@ -57,7 +64,7 @@ const imageGeneration = async (req: Request, res: Response) => {
         const titleText = titleResult.content || ""
 
         await storeSessionId({ sessionId: sessionID, userId: userID, title: titleText as string })
-        io.emit("send_sessionId_with_title", sessionID, titleText)
+        io.to(socketId).emit("send_sessionId_with_title", sessionID, titleText)
     }
 
     //  store user message
@@ -152,12 +159,9 @@ const imageGeneration = async (req: Request, res: Response) => {
         },
     }
 
-    //  MODEL 
-    const model = await initChatModel("google-genai:gemini-2.5-flash")
-
     //  AGENT 
     const agent = createAgent({
-        model,
+        model: chatModel,
         systemPrompt: systemPrompt
     })
 
@@ -181,12 +185,7 @@ const imageGeneration = async (req: Request, res: Response) => {
         },
         { streamMode: "messages" }
     )
-    // console.log(
-    //     lastTenMessages.map(m => ({
-    //         role: m.role,
-    //         content: m.content,
-    //     }))
-    // )
+
     const responseId = crypto.randomUUID()
 
 
@@ -205,18 +204,14 @@ const imageGeneration = async (req: Request, res: Response) => {
         aiMessage
     )
     io.to(socketId).emit("send_messageId", responseId, conversationId)
-    // io.emit("send_sessionId", sessionID)
 
 
     const latestMessages = await getLastMessages({
         sessionId: sessionID,
     }) || []
 
-    // extractor model 
-    const extractor = await initChatModel("google-genai:gemini-2.5-flash-lite")
-
     // invoke extractor agent     
-    const extractorResult = await extractor.invoke([
+    const extractorResult = await lightModel.invoke([
         {
             role: "system",
             content: `
@@ -310,9 +305,6 @@ const imageGeneration = async (req: Request, res: Response) => {
         extractedFacts: extractedFact
     })
 
-
-    // summarizer model
-    const summarizer = await initChatModel("google-genai:gemini-2.5-flash-lite")
     // invoke summary agent     
     const messageCount = await getMessageCount({
         userId: userID,
@@ -321,7 +313,7 @@ const imageGeneration = async (req: Request, res: Response) => {
 
 
     if (messageCount % 20 == 0) {
-        const summaryResult = await summarizer.invoke([
+        const summaryResult = await lightModel.invoke([
             {
                 role: "system",
                 content: `You are a conversation summarization system.
@@ -374,13 +366,7 @@ const imageGeneration = async (req: Request, res: Response) => {
         //save the summary to db
         await storeSummarizeMessages({ userId: userID, summarizeText: summaryText as string })
     }
-
-    //
-    // io.emit("send_messageId", responseId, conversationId)
-    // io.emit("send_sessionId", sessionID)
-
-
 };
 
-export default imageGeneration;
+export default chatController;
 
