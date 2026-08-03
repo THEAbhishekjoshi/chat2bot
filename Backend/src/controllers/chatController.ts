@@ -18,64 +18,66 @@ const lightModel = await initChatModel(
 )
 
 const chatController = async (req: Request, res: Response) => {
-    const { socketId } = req.body;
-    if (!socketId) return res.status(400).json({ error: "socketId required" })
+    const { socketId } = req.body
 
-    const prompt = userPrompt
-    if (!prompt)
-        return res.status(400).json({ error: "No prompt found for this socket" })
+    try {
+        if (!socketId) return res.status(400).json({ error: "socketId required" })
 
-    console.log("starting stream for:", socketId, "Prompt:", prompt)
+        const prompt = userPrompt
+        if (!prompt)
+            return res.status(400).json({ error: "No prompt found for this socket" })
 
-    if (userID) {
-        await storeUser({ userId: userID })
-    }
+        console.log("starting stream for:", socketId, "Prompt:", prompt)
 
-    // Last 10 Messages
-    const lastTenMessages = await getLastMessages({ sessionId: sessionID }) || []
+        if (userID) {
+            await storeUser({ userId: userID })
+        }
 
-    // Facts
-    let facts = await getExtractedFacts(userID)
+        // Last 10 Messages
+        const lastTenMessages = await getLastMessages({ sessionId: sessionID }) || []
 
-    // Summary Text
-    let summaryText = await getSummarizeMessages({
-        userId: userID
-    }) || ""
+        // Facts
+        let facts = await getExtractedFacts(userID)
 
-    // invoke title agent
-    const session = await getSession(sessionID)
+        // Summary Text
+        let summaryText = await getSummarizeMessages({
+            userId: userID
+        }) || ""
 
-    if ((!session || !session.title)) {
-        const titleResult = await lightModel.invoke([
-            {
-                role: "system",
-                content: `Generate a short and concise chat title in 4-6 words based on the users message. Do NOT answer the question, just summarize it as a title. 
+        // invoke title agent
+        const session = await getSession(sessionID)
+
+        if ((!session || !session.title)) {
+            const titleResult = await lightModel.invoke([
+                {
+                    role: "system",
+                    content: `Generate a short and concise chat title in 4-6 words based on the users message. Do NOT answer the question, just summarize it as a title. 
                         Example:
                         User message: Hello, what is the capital of America? 
                         Title: Capital of America 
                         User message: How do I reset my password on Gmail? 
                         Title: Gmail Password Reset`
-            },
-            {
-                role: "user",
-                content: prompt
-            }
-        ])
-        const titleText = titleResult.content || ""
+                },
+                {
+                    role: "user",
+                    content: prompt
+                }
+            ])
+            const titleText = titleResult.content || ""
 
-        await storeSessionId({ sessionId: sessionID, userId: userID, title: titleText as string })
-        io.to(socketId).emit("send_sessionId_with_title", sessionID, titleText)
-    }
+            await storeSessionId({ sessionId: sessionID, userId: userID, title: titleText as string })
+            io.to(socketId).emit("send_sessionId_with_title", sessionID, titleText)
+        }
 
-    //  store user message
-    let conversationId = ""
-    if (!isRegenereate) {
-        conversationId = crypto.randomUUID()
-        await storeMessages({ userId: userID, sessionId: sessionID, role: 'user', content: prompt, messageId: conversationId })
-    }
+        //  store user message
+        let conversationId = ""
+        if (!isRegenereate) {
+            conversationId = crypto.randomUUID()
+            await storeMessages({ userId: userID, sessionId: sessionID, role: 'user', content: prompt, messageId: conversationId })
+        }
 
-    // system Prompt 
-    const systemPrompt = `
+        // system Prompt 
+        const systemPrompt = `
         You are an AI chatbot designed to behave like the user's caring best friend.
         You have your own friendly nickname: Nova.
 
@@ -125,96 +127,108 @@ const chatController = async (req: Request, res: Response) => {
         User Facts: """${facts}"""
 
         Respond as a supportive best friend using all context naturally.
-
+        
+        FORMAT RULES:
+        - Use Markdown for formatting.
+        - Use ## and ### for clear section headings when useful.
+        - Use bullet points for lists.
+        - Use numbered lists for step-by-step instructions.
+        - Wrap code in fenced code blocks with the language name.
+        - Use **bold** for important terms.
+        - Do not use Markdown tables unless they improve clarity.
+        - Keep responses readable and well structured.
         `
 
-    // TOOL
-    const generateImage = {
-        name: "generate_image_tool",
-        description: "Generate an image from user prompt",
-        schema: z.object({
-            text: z.string(),
-        }),
-        async func({ text }: { text: string }) {
-            const client = new OpenAI({ apiKey: process.env.API_KEY });
+        // TOOL
+        const generateImage = {
+            name: "generate_image_tool",
+            description: "Generate an image from user prompt",
+            schema: z.object({
+                text: z.string(),
+            }),
+            async func({ text }: { text: string }) {
+                const client = new OpenAI({ apiKey: process.env.API_KEY });
 
-            const img = await client.images.generate({
-                model: "dall-e-3",
-                prompt: text,
-                size: "1024x1024",
-                n: 1,
-            });
+                const img = await client.images.generate({
+                    model: "dall-e-3",
+                    prompt: text,
+                    size: "1024x1024",
+                    n: 1,
+                });
 
-            // img object
-            if (img.data && img.data[0] && img.data[0].url) {
-                const imageUrl = img.data[0].url
-                //hasImageUrl = imageUrl
-                return imageUrl
-            }
-            else {
-                throw new Error("Image Generation Failed")
-            }
-
-
-        },
-    }
-
-    //  AGENT 
-    const agent = createAgent({
-        model: chatModel,
-        systemPrompt: systemPrompt
-    })
-
-
-    // SIGNAL start
-    res.json({ status: "streaming_started" })
-
-    // STREAMING
-    const stream = await agent.stream(
-        {
-            messages: [
-                ...lastTenMessages.map(m => ({
-                    role: m.role === "ai" ? "assistant" : "user",
-                    content: m.content,
-                })),
-                {
-                    role: "user",
-                    content: prompt
+                // img object
+                if (img.data && img.data[0] && img.data[0].url) {
+                    const imageUrl = img.data[0].url
+                    //hasImageUrl = imageUrl
+                    return imageUrl
                 }
-            ]
-        },
-        { streamMode: "messages" }
-    )
-
-    const responseId = crypto.randomUUID()
+                else {
+                    throw new Error("Image Generation Failed")
+                }
 
 
-    let aiMessage = ""
-    for await (const [chunk] of stream) {
-        const token = chunk?.contentBlocks?.[0]?.text;
-        if (!token) continue;
-        aiMessage += token
-        io.to(socketId).emit("send_chunks", token);
-    }
+            },
+        }
 
-    await storeMessages({ userId: userID, sessionId: sessionID, role: 'assistant', content: aiMessage, messageId: responseId })
-    io.to(socketId).emit(
-        "update_sidebar_last_message",
-        sessionID,
-        aiMessage
-    )
-    io.to(socketId).emit("send_messageId", responseId, conversationId)
+        //  AGENT 
+        const agent = createAgent({
+            model: chatModel,
+            systemPrompt: systemPrompt
+        })
 
 
-    const latestMessages = await getLastMessages({
-        sessionId: sessionID,
-    }) || []
+        // SIGNAL start
+        io.to(socketId).emit("streaming_start")
 
-    // invoke extractor agent     
-    const extractorResult = await lightModel.invoke([
-        {
-            role: "system",
-            content: `
+        // STREAMING
+        const stream = await agent.stream(
+            {
+                messages: [
+                    ...lastTenMessages.map(m => ({
+                        role: m.role === "ai" ? "assistant" : "user",
+                        content: m.content,
+                    })),
+                    {
+                        role: "user",
+                        content: prompt
+                    }
+                ]
+            },
+            { streamMode: "messages" }
+        )
+
+        const responseId = crypto.randomUUID()
+
+
+        let aiMessage = ""
+        for await (const [chunk] of stream) {
+            const token = chunk?.contentBlocks?.[0]?.text;
+            if (!token) continue;
+            aiMessage += token
+            io.to(socketId).emit("send_chunks", token);
+        }
+
+        await storeMessages({ userId: userID, sessionId: sessionID, role: 'assistant', content: aiMessage, messageId: responseId })
+        io.to(socketId).emit(
+            "update_sidebar_last_message",
+            sessionID,
+            aiMessage
+        )
+        io.to(socketId).emit("send_messageId", responseId, conversationId)
+        // SIGNAL end
+        io.to(socketId).emit("streaming_end")
+
+
+        const latestMessages = await getLastMessages({
+            sessionId: sessionID,
+        }) || []
+
+        // extractor + summariser
+        // invoke extractor agent     
+        const extractorResult = await lightModel.invoke([
+            {
+                role: "system",
+                content: `
             You are a memory extraction system for an AI assistant.
 
             Your job is NOT to summarize the conversation.
@@ -284,11 +298,11 @@ const chatController = async (req: Request, res: Response) => {
 
             Important notes:
             -`,
-        },
-        {
-            role: "user",
-            content:
-                `Existing memory:
+            },
+            {
+                role: "user",
+                content:
+                    `Existing memory:
                 ${facts}
 
                 New conversation messages:
@@ -297,26 +311,26 @@ const chatController = async (req: Request, res: Response) => {
                 Update the memory.
                 Keep previous useful information.
                 Remove outdated information`
-        },
-    ])
-    const extractedFact = extractorResult.content as string
-    await storeExtractedFacts({
-        userId: userID,
-        extractedFacts: extractedFact
-    })
+            },
+        ])
+        const extractedFact = extractorResult.content as string
+        await storeExtractedFacts({
+            userId: userID,
+            extractedFacts: extractedFact
+        })
 
-    // invoke summary agent     
-    const messageCount = await getMessageCount({
-        userId: userID,
-        sessionId: sessionID
-    })
+        // invoke summary agent     
+        const messageCount = await getMessageCount({
+            userId: userID,
+            sessionId: sessionID
+        })
 
 
-    if (messageCount % 20 == 0) {
-        const summaryResult = await lightModel.invoke([
-            {
-                role: "system",
-                content: `You are a conversation summarization system.
+        if (messageCount % 20 == 0) {
+            const summaryResult = await lightModel.invoke([
+                {
+                    role: "system",
+                    content: `You are a conversation summarization system.
 
                 Your task is to maintain a rolling summary of the conversation.
 
@@ -343,28 +357,37 @@ const chatController = async (req: Request, res: Response) => {
                 Return ONLY the updated summary.
                 Maximum length: 300 words.
                 `
-            },
-            {
-                role: "user",
-                content: `
+                },
+                {
+                    role: "user",
+                    content: `
                 Previous summary:
                 ${summaryText}
 
                 Recent conversation:
                 ${latestMessages.map(
-                    m => `${m.role}: ${m.content}`
-                ).join("\n")}
+                        m => `${m.role}: ${m.content}`
+                    ).join("\n")}
 
                 Recent ai Message: ${aiMessage}
 
                 Update the summary.
 `
-            },
-        ])
+                },
+            ])
 
-        summaryText = summaryResult.content as string;
-        //save the summary to db
-        await storeSummarizeMessages({ userId: userID, summarizeText: summaryText as string })
+            summaryText = summaryResult.content as string;
+            //save the summary to db
+            await storeSummarizeMessages({ userId: userID, summarizeText: summaryText as string })
+        }
+    }
+    catch (error) {
+        console.log("Error:", error)
+        io.to(socketId).emit(
+            "streaming_error",
+            "Failed to generate response"
+        )
+        io.to(socketId).emit("streaming_end")
     }
 };
 
