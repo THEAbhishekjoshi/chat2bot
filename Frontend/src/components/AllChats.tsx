@@ -1,7 +1,7 @@
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { setSessionId } from '@/features/globalstate/sessionState'
 import { fetchAllSessions, deleteSessionThunk, updateSessionTitleThunk, toggleSaveSessionThunk } from '@/features/sessions/sessions'
-import { resetChats } from '@/features/chats/chats'
+import { fetchAllChats, resetChats } from '@/features/chats/chats'
 import { useEffect, useState } from 'react'
 import { SidebarItem } from './common/SideBarItem'
 import { Heart } from 'lucide-react'
@@ -42,6 +42,7 @@ const AllChats = ({ searchText, activeTab }: { searchText: string; activeTab: st
 
     const handleSessionId = ({ sessionId }: { sessionId: string }) => {
         dispatch(setSessionId(sessionId))
+        dispatch(fetchAllChats({ sessionId }))
     }
 
     const handleDeleteSession = async (sessionId: string) => {

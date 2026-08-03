@@ -5,9 +5,14 @@ import { Copy, Mic, RefreshCcw, Send, Square } from "lucide-react";
 import user from "/user.svg";
 import logo from "/logo1.svg";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
-import { fetchAllChats } from "@/features/chats/chats";
 import { setSessionId } from "@/features/globalstate/sessionState";
 import { addNewSessions, updateLastMessage } from "@/features/sessions/sessions";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
+import "highlight.js/styles/github-dark.css";
+import { toast } from "sonner";
+
 
 
 export type MessageProps = {
@@ -19,17 +24,16 @@ export type MessageProps = {
 const ChatBot = () => {
     const dispatch = useAppDispatch()
     const sessionId = useAppSelector(state => state.globalState.currentSessionId)
-    // const chatList = useAppSelector((state) => state.chats)
+    const { messages: chatList, loading: fetchLoading, error } = useAppSelector((state) => state.chats)
     const userId = localStorage.getItem("userId") ?? sessionStorage.getItem("userId") ?? ""
 
-    const { messages: chatList, loading: fetchLoading, error } = useAppSelector((state) => state.chats)
+
     let [userMessage, setUserMessage] = useState("")
     const socketIdRef = useRef<string | null>(null)
     const [allMessages, setAllMessages] = useState<MessageProps[]>(chatList)
     const [isRecording, setIsRecording] = useState(false)
     const regenerateRef = useRef(false)
     const [isGenerating, setIsGenerating] = useState(false)
-    // const messageRef = useRef<HTMLDivElement>(null)
     const [audioBlob, setAudioBlob] = useState<Blob>()
     const mediaRecorderRef = useRef<MediaRecorder | null>(null)
     const mediaStreamRef = useRef<MediaStream | null>(null)
@@ -37,13 +41,8 @@ const ChatBot = () => {
 
 
     useEffect(() => {
-        if (!sessionId) return
-        dispatch(fetchAllChats({ sessionId }))
-    }, [sessionId])
-
-    useEffect(() => {
-        setAllMessages(chatList);
-    }, [chatList]);
+        setAllMessages(chatList)
+    }, [chatList])
 
 
     useEffect(() => {
@@ -166,15 +165,24 @@ const ChatBot = () => {
     useEffect(() => {
         if (!socket) {
             socketInitialize()
+            console.log("167 socket doesn't exist; created new one")
         }
-        socket.on("connection", () => {
+        socket.on("connect", () => {
             if (socket.id) {
                 socketIdRef.current = socket.id
             }
-
         })
-        socket.on("socket_id", () => {
-        });
+        socket.on("streaming_start", () => {
+            setIsGenerating(true)
+        })
+
+        socket.on("streaming_end", () => {
+            setIsGenerating(false)
+        })
+
+        socket.on("streaming_error", (msg) => {
+            toast.error(msg)
+        })
 
         socket.on("send_chunks", (chunk) => {
             setAllMessages((prev) => {
@@ -257,8 +265,9 @@ const ChatBot = () => {
         })
 
         return () => {
-            socket.off("connection")
-            socket.off("socket_id")
+            socket.off("connect")
+            socket.off("streaming_start")
+            socket.off("streaming_end")
             socket.off("send_chunks")
             socket.off("send_messageId")
             socket.off("audio_transcribed")
@@ -278,8 +287,6 @@ const ChatBot = () => {
         const shouldRegenerate = regenerateRef.current
 
         regenerateRef.current = false
-
-        setIsGenerating(true)
 
         try {
             // Add user message
@@ -311,7 +318,7 @@ const ChatBot = () => {
             await axios.post(
                 `${import.meta.env.VITE_BACKEND_URL}/chat/respond`,
                 {
-                    socketId: socket.id
+                    socketId: socketIdRef.current
                 }
             )
         } catch (error) {
@@ -319,8 +326,6 @@ const ChatBot = () => {
                 "Failed to generate response:",
                 error
             )
-        } finally {
-            setIsGenerating(false)
         }
     }
 
@@ -359,7 +364,7 @@ const ChatBot = () => {
         else {
             throw new Error('messgeId not provided.')
         }
-    };
+    }
 
     if (fetchLoading) {
         return (
@@ -394,7 +399,7 @@ const ChatBot = () => {
     }
 
     return (
-        <div className={`flex flex-col items-center ${(allMessages.length > 0 && allMessages[0].role.length > 0) ? '' : 'justify-center'} mx-auto w-full h-full bg-[#3F424A] text-white px-2 sm:px-6 md:px-10 `}>
+        <div className={`flex flex-col items-center ${(allMessages.length > 0 && allMessages[0].role.length > 0) ? '' : 'justify-center'} mx-auto min-w-0 w-full h-full bg-[#3F424A] text-white px-2 sm:px-6 md:px-10`}>
             {/* chats */}
             {(allMessages.length > 0 && allMessages[0].role.length > 0) ?
                 <div className="w-full lg:w-3/4 mt-2 flex-1 py-5 pb-24">
@@ -418,14 +423,12 @@ const ChatBot = () => {
 
                             {/* Message Content */}
                             <div
-                                className={`
-                            inline-block p-5 rounded-lg wrap-break-word text-[0.9rem]
-                            max-w-[100%] text-justify
-                            ${m.role === "user" ? "bg-[#4b4f5b]" :
+                                className={` inline-block p-5 rounded-lg wrap-break-word text-[0.9rem] 
+                                    max-w-full break-words overflow-x-auto  text-left
+                                    ${m.role === "user" ? "bg-[#4b4f5b]" :
                                         m.content.length > 0 ? "bg-[#282f3f] "
                                             : "bg-[#282f3f] animate-pulse "
-                                    }
-                            `}
+                                    }`}
                             >
                                 {/^(http|https):\/\//.test(m.content) ? (
 
@@ -433,10 +436,41 @@ const ChatBot = () => {
 
                                 ) : (
                                     m.role === "assistant" ?
-                                        <div className="flex flex-col">
-                                            <div>{m.content}</div>
+                                        <div className="prose
+                                                prose-invert
+                                                max-w-none
+                                                break-words
+
+                                                prose-p:my-3
+                                                prose-p:leading-7
+
+                                                prose-headings:mt-6
+                                                prose-headings:mb-3
+
+                                                prose-h1:text-2xl
+                                                prose-h2:text-xl
+                                                prose-h3:text-lg
+
+                                                prose-ul:my-3
+                                                prose-ol:my-3
+                                                prose-li:my-1
+
+                                                prose-table:my-5
+                                                prose-th:px-3
+                                                prose-th:py-2
+                                                prose-td:px-3
+                                                prose-td:py-2
+
+                                                prose-pre:my-4
+                                                prose-pre:p-4">
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                                rehypePlugins={[rehypeHighlight]}
+                                            >
+                                                {m.content}
+                                            </ReactMarkdown>
                                             {m.messageId ?
-                                                <div className="mt-4 flex gap-3 justify-end">
+                                                <div className="not-prose   mt-4 flex gap-3 justify-end">
                                                     <div className="text-[0.7rem] bg-[#202633] rounded-md p-2 hover:bg-[#121722] cursor-pointer">
                                                         <button className="flex items-center gap-1" onClick={() => {
                                                             if (m.messageId) {
@@ -522,8 +556,8 @@ const ChatBot = () => {
                         </button>
                     </div>
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
 

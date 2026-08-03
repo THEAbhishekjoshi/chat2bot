@@ -3,6 +3,8 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@plugin "@tailwindcss/typography";
+
 /* Chat Messages scrollbar */
 .chat-messages::-webkit-scrollbar {
   width: 8px;

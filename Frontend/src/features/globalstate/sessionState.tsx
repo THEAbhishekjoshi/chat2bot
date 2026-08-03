@@ -1,23 +1,25 @@
-import { createSlice} from '@reduxjs/toolkit'
+import { createSlice } from '@reduxjs/toolkit'
 
 export type globalStateProps = {
     currentSessionId: string,
 }
-const initialState:globalStateProps= {
-    currentSessionId:""
+const initialState: globalStateProps = {
+    currentSessionId: "",
 }
 export const globalStateSlice = createSlice({
-    name:"globalState",
+    name: "globalState",
     initialState,
-    reducers:{
-        setSessionId:(state,action)=>{
-            state.currentSessionId= action.payload;
+    reducers: {
+        setSessionId: (state, action) => {
+            state.currentSessionId = action.payload;
         },
-        resetGlobalState:()=>initialState
+        resetGlobalState: (state) => {
+            state.currentSessionId = "";
+        }
     }
 })
 export const {
     setSessionId,
     resetGlobalState
-}= globalStateSlice.actions
+} = globalStateSlice.actions
 export default globalStateSlice.reducer 

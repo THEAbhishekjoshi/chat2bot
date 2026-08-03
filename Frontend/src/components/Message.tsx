@@ -1,22 +1,17 @@
 import ChatBot from './ChatBot'
 const Message = () => {
     return (
-        <div className='ml-3 pb-3 mr-3 w-full h-full flex flex-col p-1' >
+        <div className='ml-3 pb-3 mr-3 w-full min-w-0  h-full flex flex-col p-1 overflow-hidden' >
 
             {/* TopBar */}
             <div className='flex justify-between text-white h-8 w-full'>
                 {/* title */}
                 <div className='font-semibold text-2xl'>Messages</div>
 
-                {/* search and three buttons */}
-                {/* <div className='flex gap-2'>
-                    <div className='bg-[#1E1F22] rounded-md flex justify-center items-center w-[1.9rem] h-[1.9rem] '><Search size={18}/></div>
-                    <div className='bg-[#1E1F22] rounded-md flex justify-center items-center w-[1.9rem] h-[1.9rem] '><Ellipsis/></div>
-                </div> */}
             </div>
 
             {/* Main content */}
-            <div className='mt-2 h-full w-full bg-[#3F424A] rounded-md overflow-y-auto relative chat-messages'>
+            <div className='mt-2 flex-1 min-h-0 min-w-0 h-full w-full bg-[#3F424A] rounded-md overflow-y-auto relative chat-messages'>
                 <ChatBot />
             </div>
         </div>
